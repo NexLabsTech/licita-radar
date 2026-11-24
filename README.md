@@ -86,6 +86,10 @@ No radar, clique **Analisar com IA**: confirme o consentimento por análise e op
 python -m pytest -q tests/test_ai.py
 ```
 
+## Resultados oficiais de itens (sem inventar participantes)
+
+No radar clique **Resultados PNCP** para consultar manualmente a API pública de resultados daquele item. Quando publicado, o sistema guarda valor unitário e quantidade homologados com até quatro casas decimais, situação informado/cancelado e razão social de fornecedor PJ (sem salvar identificadores ou nomes de PF/PE). A consulta exige login/CSRF, limita reconsulta a 60 segundos e preserva o último snapshot caso o PNCP falhe. **Quantidade de registros de resultados não é quantidade de licitantes** e valor homologado não é cotação atual de compra ou margem possível. Sem custo de API e sem coleta automática nesse endpoint.
+
 ## Monitor privado de oportunidades
 
 No radar, use **☆ Acompanhar** no item para adicioná-lo aos favoritos. Em **Meu monitor**, crie até 20 regras por palavra-chave, UF, categoria e situação; visualize alertas internos, mudanças de status dos favoritos e indícios conservadores de possível republicação. As regras analisam até 500 itens recentes já armazenados inicialmente, além dos itens importados depois. Alertas são apenas dados locais, sem e-mail ou push, e não identificam concorrentes ocultos nem comprovam que o processo está aberto. Candidatos de republicação exibem os dois links originais do PNCP e exigem conferência humana.

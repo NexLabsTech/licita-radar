@@ -136,6 +136,7 @@
             <div class="monitor-actions">
               <a class="table-link" href="{{ item.link }}" target="_blank" rel="noopener noreferrer">Fonte PNCP ↗</a>
               <a class="table-link" href="/quote?tender_id={{ item.tender_id|urlencode }}&numero={{ item.numero }}">Margem ↗</a>
+              <a class="table-link" href="/results?tender_id={{ item.tender_id|urlencode }}&numero={{ item.numero }}">Resultados ↗</a>
               <form action="/monitor/favorite" method="post">
                 <input type="hidden" name="csrf" value="{{ csrf }}">
                 <input type="hidden" name="tender_id" value="{{ item.tender_id }}">

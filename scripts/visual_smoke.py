@@ -221,6 +221,25 @@ def run() -> None:
                         path=str(output / ("monitor-" + name + ".png")),
                         full_page=True, animations="disabled",
                     )
+                    results_url = root + "/results?" + urlencode({
+                        "tender_id": control, "numero": 1,
+                    })
+                    page.goto(results_url, wait_until="networkidle")
+                    assert page.get_by_role(
+                        "heading", name="Registros de resultados"
+                    ).is_visible()
+                    assert page.get_by_text("Ainda não consultado").count() >= 1
+                    assert page.get_by_role(
+                        "button", name="Atualizar resultados PNCP"
+                    ).is_visible()
+                    assert page.evaluate(
+                        "() => document.documentElement.scrollWidth <= window.innerWidth + 1"
+                    ), "Overflow no painel de resultados " + name
+                    assert not problems, "Erros JS em resultados " + name + ": " + str(problems)
+                    page.screenshot(
+                        path=str(output / ("results-" + name + ".png")),
+                        full_page=True, animations="disabled",
+                    )
                     page.close()
                     print("Quote + AI visual smoke " + name + ": PASS")
                 browser.close()
