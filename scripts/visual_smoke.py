@@ -258,6 +258,36 @@ def run() -> None:
                         path=str(output / ("coverage-" + name + ".png")),
                         full_page=True, animations="disabled",
                     )
+                    workspace_url = root + "/workspace?" + urlencode({
+                        "tender_id": control, "numero": 1,
+                    })
+                    page.goto(workspace_url, wait_until="networkidle")
+                    assert page.get_by_role(
+                        "heading", name="Plano da oportunidade"
+                    ).is_visible()
+                    if name == "desktop":
+                        page.locator("#workspace-stage").select_option("cotando")
+                        page.locator("#workspace-priority").select_option("alta")
+                        page.locator("#workspace-notes").fill("Nota fictícia do CI")
+                        page.get_by_role("button", name="Salvar plano e etapa").click()
+                        page.wait_for_url(workspace_url)
+                        page.locator("#workspace-task").fill("Solicitar orçamento de teste")
+                        page.get_by_role("button", name="Adicionar").click()
+                        page.wait_for_url(workspace_url)
+                        assert page.get_by_text(
+                            "Solicitar orçamento de teste"
+                        ).count() >= 1
+                    assert page.get_by_role(
+                        "heading", name="Oportunidades em acompanhamento"
+                    ).is_visible()
+                    assert page.evaluate(
+                        "() => document.documentElement.scrollWidth <= window.innerWidth + 1"
+                    ), "Overflow em workspace " + name
+                    assert not problems, "Erro JavaScript em workspace " + name + ": " + str(problems)
+                    page.screenshot(
+                        path=str(output / ("workspace-" + name + ".png")),
+                        full_page=True, animations="disabled",
+                    )
                     page.close()
                     print("Quote + AI visual smoke " + name + ": PASS")
                 browser.close()
