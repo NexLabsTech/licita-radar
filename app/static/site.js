@@ -98,6 +98,9 @@
     const aiLink = node("a", "table-link ai-link", "Analisar com IA ✦");
     aiLink.href = "/ai?" + query.toString();
     source.append(aiLink);
+    const resultsLink = node("a", "table-link result-link", "Resultados PNCP ↗");
+    resultsLink.href = "/results?" + query.toString();
+    source.append(resultsLink);
     const monitorLink = node(
       "a", "table-link monitor-item-link",
       item.watched ? "★ Acompanhando" : "☆ Acompanhar"
