@@ -279,6 +279,7 @@ def test_authenticated_changes_endpoint(client):
 
 def test_scan_cycle_checks_two_modalities(monkeypatch, db_path):
     from asyncio import run
+
     from app import scheduler
 
     calls = []
@@ -297,6 +298,7 @@ def test_scan_cycle_checks_two_modalities(monkeypatch, db_path):
 
 def test_scan_cycle_survives_failure_of_one_modality(monkeypatch, db_path):
     from asyncio import run
+
     from app import scheduler
 
     async def fake_sync(path, start, end, uf, modality):
