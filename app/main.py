@@ -40,6 +40,13 @@ from .monitor import (
 )
 from .pncp import sync_pncp
 from .quotes import get_item, get_quote, get_quotes_for_items, init_quotes, save_quote
+from .results import (
+    RESULT_STATES,
+    ResultFetchError,
+    get_result_snapshot,
+    init_results,
+    refresh_item_results,
+)
 from .scheduler import periodic_scan_loop
 from .security import (
     SESSION_SECONDS,
@@ -151,11 +158,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.lock = asyncio.Lock()
     app.state.ai_lock = asyncio.Lock()
+    app.state.results_lock = asyncio.Lock()
     app.state.failed_attempts: dict[str, list[float]] = {}
     if settings.configured:
         init_db(settings.db_path)
         init_quotes(settings.db_path)
         init_ai(settings.db_path)
+        init_results(settings.db_path)
 
     def session_csrf(request: Request) -> str | None:
         if not settings.configured:
@@ -416,6 +425,74 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except (ValueError, TypeError) as exc:
             return no_cache(PlainTextResponse(str(exc), status_code=422))
         return no_cache(RedirectResponse("/monitor", status_code=303))
+
+
+    @app.get("/results", response_class=HTMLResponse)
+    async def results_page(
+        request: Request,
+        tender_id: str = Query(..., min_length=1, max_length=180),
+        numero: int = Query(..., ge=1, le=100000),
+    ):
+        csrf = guard(request)
+        if not isinstance(csrf, str):
+            return csrf
+        item = get_item(settings.db_path, tender_id, numero)
+        if item is None:
+            return no_cache(PlainTextResponse("Item não encontrado.", status_code=404))
+        snapshot = get_result_snapshot(settings.db_path, tender_id, numero)
+        return no_cache(templates.TemplateResponse(request, "results.html", {
+            "item": item, "csrf": csrf, "snapshot": snapshot,
+            "result_statuses": RESULT_STATES, "error": None,
+        }))
+
+    @app.get("/api/results")
+    async def results_api(
+        request: Request,
+        tender_id: str = Query(..., min_length=1, max_length=180),
+        numero: int = Query(..., ge=1, le=100000),
+    ):
+        csrf = guard(request, json=True)
+        if not isinstance(csrf, str):
+            return csrf
+        if get_item(settings.db_path, tender_id, numero) is None:
+            return no_cache(JSONResponse({"error": "Item não encontrado."}, status_code=404))
+        return no_cache(JSONResponse(get_result_snapshot(
+            settings.db_path, tender_id, numero
+        )))
+
+    @app.post("/results/refresh", response_class=HTMLResponse)
+    async def refresh_results(request: Request):
+        csrf = guard(request)
+        if not isinstance(csrf, str):
+            return csrf
+        form = await request.form()
+        if not check_csrf(csrf, str(form.get("csrf") or "")):
+            return no_cache(PlainTextResponse("Token de segurança inválido.", status_code=403))
+        tender_id = str(form.get("tender_id") or "")
+        try:
+            numero = int(str(form.get("numero") or "0"))
+        except ValueError:
+            return no_cache(PlainTextResponse("Número de item inválido.", status_code=422))
+        if not 1 <= len(tender_id) <= 180 or not 1 <= numero <= 100000:
+            return no_cache(PlainTextResponse("Item inválido.", status_code=422))
+        item = get_item(settings.db_path, tender_id, numero)
+        if item is None:
+            return no_cache(PlainTextResponse("Item não encontrado.", status_code=404))
+        try:
+            async with app.state.results_lock:
+                await refresh_item_results(settings.db_path, tender_id, numero)
+        except ResultFetchError as exc:
+            return no_cache(templates.TemplateResponse(
+                request, "results.html", {
+                    "item": item, "csrf": csrf,
+                    "snapshot": get_result_snapshot(settings.db_path, tender_id, numero),
+                    "result_statuses": RESULT_STATES, "error": str(exc),
+                }, status_code=exc.status_code,
+            ))
+        from urllib.parse import urlencode
+
+        target = urlencode({"tender_id": tender_id, "numero": numero})
+        return no_cache(RedirectResponse("/results?" + target, status_code=303))
 
     @app.get("/quote", response_class=HTMLResponse)
     async def quote_page(
