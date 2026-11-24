@@ -34,6 +34,7 @@ from .quotes import get_item, get_quote, get_quotes_for_items, init_quotes, save
 from .scheduler import periodic_scan_loop
 from .security import (
     SESSION_SECONDS,
+    valid_password_hash,
     make_session,
     new_login_csrf,
     read_session,
@@ -44,6 +45,23 @@ from .storage import STATUSES, init_db, list_items, recent_events
 
 ROOT = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(ROOT / "templates"))
+
+
+def _server_secret(name: str) -> str:
+    """Segredo opcional em Docker secret; nunca mostrar conteúdo em erros."""
+    file_path = os.getenv(name + "_FILE", "")
+    plain = os.getenv(name, "")
+    if not file_path:
+        return plain
+    if plain:
+        raise RuntimeError("Segredo configurado por ambiente e arquivo simultaneamente.")
+    try:
+        source = Path(file_path)
+        if source.is_symlink() or not source.is_file() or source.stat().st_size > 8192:
+            raise OSError("invalid")
+        return source.read_text(encoding="utf-8").rstrip("\r\n")
+    except (OSError, UnicodeError) as exc:
+        raise RuntimeError("Arquivo de segredo obrigatório indisponível.") from None
 
 
 @dataclass(frozen=True)
@@ -64,8 +82,8 @@ class Settings:
             raise RuntimeError("COOKIE_SECURE=1 é obrigatório em produção.")
         return cls(
             username=os.getenv("LOGIN_USERNAME", ""),
-            password_hash=os.getenv("LOGIN_PASSWORD_HASH", ""),
-            session_secret=os.getenv("SESSION_SECRET", ""),
+            password_hash=_server_secret("LOGIN_PASSWORD_HASH"),
+            session_secret=_server_secret("SESSION_SECRET"),
             db_path=os.getenv("DB_PATH", "data/licitaradar.db"),
             secure_cookies=os.getenv("COOKIE_SECURE", "1") == "1",
             auto_scan=os.getenv("AUTO_SCAN_ENABLED", "0") == "1",
@@ -74,7 +92,7 @@ class Settings:
             ai=AIConfig(
                 enabled=os.getenv("AI_ENABLED", "0") == "1",
                 provider=os.getenv("AI_PROVIDER", "deepseek").strip().lower(),
-                key=os.getenv("AI_API_KEY", ""),
+                key=_server_secret("AI_API_KEY"),
                 model=os.getenv("AI_MODEL", "").strip(),
                 daily_limit=int(os.getenv("AI_DAILY_LIMIT", "10")),
             ),
@@ -85,13 +103,16 @@ class Settings:
         return (
             bool(self.username)
             and "|" not in self.username
-            and self.password_hash.startswith("pbkdf2_sha256$")
+            and valid_password_hash(self.password_hash)
             and len(self.session_secret) >= 32
         )
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings.from_env()
+    if os.getenv("APP_ENV") == "production":
+        if not settings.secure_cookies or not settings.configured:
+            raise RuntimeError("Produção exige login válido e cookie seguro.")
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         worker = None
