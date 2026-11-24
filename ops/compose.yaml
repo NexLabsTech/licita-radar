@@ -16,6 +16,9 @@ services:
       DB_PATH: /app/data/licitaradar.db
       LOGIN_PASSWORD_HASH_FILE: /run/secrets/login_password_hash
       SESSION_SECRET_FILE: /run/secrets/session_secret
+    # O UID 10001 tem apenas leitura no grupo local dos arquivos de segredo.
+    group_add:
+      - "${RADAR_SECRET_GID:?configure RADAR_SECRET_GID no compose.env}"
     secrets:
       - login_password_hash
       - session_secret
