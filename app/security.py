@@ -28,6 +28,23 @@ def hash_password(password: str, salt: bytes | None = None) -> str:
     return "pbkdf2_sha256$" + str(ITERATIONS) + "$" + _b64(salt) + "$" + _b64(digest)
 
 
+def valid_password_hash(stored: str) -> bool:
+    """Valida forma e custo do hash sem conhecer senha em claro."""
+    if not isinstance(stored, str) or len(stored) > 512:
+        return False
+    try:
+        algorithm, rounds, salt, digest = stored.split("$")
+        n = int(rounds)
+        return (
+            algorithm == "pbkdf2_sha256"
+            and 300_000 <= n <= 1_500_000
+            and len(_decode(salt)) >= 16
+            and len(_decode(digest)) == 32
+        )
+    except (ValueError, TypeError, OverflowError, UnicodeError, binascii.Error):
+        return False
+
+
 def verify_password(password: str, stored: str) -> bool:
     try:
         algorithm, rounds, salt, digest = stored.split("$")

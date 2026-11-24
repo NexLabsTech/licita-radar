@@ -1,0 +1,15 @@
+.git
+.gitignore
+.github
+.env
+.env.*
+data/
+artifacts/
+ops/runtime/
+**/__pycache__/
+**/*.pyc
+**/*.db
+**/*.sqlite
+**/*.sqlite3
+.pytest_cache/
+.venv/

@@ -86,6 +86,10 @@ No radar, clique **Analisar com IA**: confirme o consentimento por análise e op
 python -m pytest -q tests/test_ai.py
 ```
 
+## VPS e backups (não implantado)
+
+O pacote opcional de Docker Compose com Caddy HTTPS, segredos privados, volumes SQLite persistentes e backup/restauração não destrutiva está descrito em [ops/DEPLOY.md](ops/DEPLOY.md). CI testa configuração, contêiner sem root e recuperação; isso **não prova** domínio, HTTPS ou operação na sua VPS real. Não criar serviços pagos nem fazer deploy antes da validação dos gates.
+
 ## Links de referência
 
 - [PNCP](https://pncp.gov.br/app/editais)

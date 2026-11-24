@@ -1,0 +1,135 @@
+name: licitaradar
+
+services:
+  web:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: licitaradar:local
+    restart: unless-stopped
+    init: true
+    env_file:
+      - ./runtime/app.env
+    environment:
+      APP_ENV: production
+      COOKIE_SECURE: "1"
+      DB_PATH: /app/data/licitaradar.db
+      LOGIN_PASSWORD_HASH_FILE: /run/secrets/login_password_hash
+      SESSION_SECRET_FILE: /run/secrets/session_secret
+    # O UID 10001 tem apenas leitura no grupo local dos arquivos de segredo.
+    group_add:
+      - "${RADAR_SECRET_GID:?configure RADAR_SECRET_GID no compose.env}"
+    secrets:
+      - login_password_hash
+      - session_secret
+    volumes:
+      - radar_data:/app/data
+    networks:
+      - internal
+    expose:
+      - "8000"
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=32m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 128
+    mem_limit: 650m
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; assert urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3).status == 200"
+      interval: 30s
+      timeout: 6s
+      retries: 4
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  backup:
+    image: licitaradar:local
+    restart: unless-stopped
+    init: true
+    depends_on:
+      web:
+        condition: service_healthy
+    command:
+      - python
+      - -m
+      - scripts.ops_backup
+      - loop
+      - --db
+      - /app/data/licitaradar.db
+      - --dir
+      - /app/backups
+      - --keep
+      - "7"
+      - --interval-hours
+      - "24"
+    volumes:
+      - radar_data:/app/data:ro
+      - radar_backups:/app/backups
+    network_mode: none
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=16m
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 50
+    mem_limit: 160m
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  proxy:
+    image: caddy:2.11.9-alpine
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
+    environment:
+      RADAR_DOMAIN: ${RADAR_DOMAIN:?configure RADAR_DOMAIN in ops/runtime/compose.env}
+      ACME_EMAIL: ${ACME_EMAIL:?configure ACME_EMAIL in ops/runtime/compose.env}
+    ports:
+      - "80:80/tcp"
+      - "443:443/tcp"
+      - "443:443/udp"
+    networks:
+      - internal
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+networks:
+  internal:
+
+volumes:
+  radar_data:
+  radar_backups:
+  caddy_data:
+  caddy_config:
+
+secrets:
+  login_password_hash:
+    file: ./runtime/secrets/password_hash
+  session_secret:
+    file: ./runtime/secrets/session_secret

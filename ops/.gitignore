@@ -1,0 +1,9 @@
+# Arquivos reais de operador, credenciais, bancos e dumps nunca versionados.
+runtime/
+*.sqlite
+*.sqlite3
+*.db
+*.db-*
+*.tar
+*.tgz
+*.env
