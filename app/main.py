@@ -513,7 +513,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 "Token de segurança inválido.", status_code=403
             ))
         try:
-            delete_job(settings.db_path, int(str(form.get("id") or "0")))
+            job_id = int(str(form.get("id") or "0"))
+            if app.state.lock.locked():
+                return no_cache(PlainTextResponse(
+                    "Outra sincronização está em andamento.", status_code=409
+                ))
+            async with app.state.lock:
+                delete_job(settings.db_path, job_id)
         except (CoverageError, ValueError, TypeError):
             return no_cache(PlainTextResponse("Pesquisa inválida.", status_code=422))
         return no_cache(RedirectResponse("/coverage", status_code=303))
