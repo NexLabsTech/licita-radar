@@ -240,3 +240,71 @@ def test_production_requires_secure_cookies(monkeypatch):
     monkeypatch.setenv("COOKIE_SECURE", "0")
     with pytest.raises(RuntimeError):
         Settings.from_env()
+
+
+def test_new_desert_and_status_transitions_are_idempotent(db_path):
+    from app.storage import recent_events
+
+    tender = {
+        "id": "HISTORY", "cnpj": "12345678000190", "ano": 2026,
+        "sequencial": 1, "orgao": "Prefeitura", "municipio": "Salto",
+        "uf": "SP", "objeto": "Materiais", "data_publicacao": "2026-11-23",
+        "abertura": None, "encerramento": None,
+        "link": "https://pncp.gov.br/app/editais/12345678000190/2026/1",
+    }
+    def item(status):
+        return {"numeroItem": 1, "materialOuServico": "M",
+                "descricao": "Capacete", "situacaoCompraItemId": status}
+
+    upsert_tender(db_path, tender, [item(1)])
+    assert recent_events(db_path) == []
+    upsert_tender(db_path, tender, [item(4)])
+    changes = recent_events(db_path)
+    assert len(changes) == 1
+    assert (changes[0]["previous_status"], changes[0]["current_status"]) == (1, 4)
+    upsert_tender(db_path, tender, [item(4)])
+    assert len(recent_events(db_path)) == 1
+    upsert_tender(db_path, tender, [item(5)])
+    changes = recent_events(db_path)
+    assert len(changes) == 2
+    assert (changes[0]["previous_status"], changes[0]["current_status"]) == (4, 5)
+    assert list_items(db_path)[1] == 1
+
+
+def test_authenticated_changes_endpoint(client):
+    assert client.get("/api/changes").status_code == 401
+    login(client)
+    assert client.get("/api/changes").json() == {"data": []}
+
+
+def test_scan_cycle_checks_two_modalities(monkeypatch, db_path):
+    from asyncio import run
+    from app import scheduler
+
+    calls = []
+
+    async def fake_sync(path, start, end, uf, modality):
+        calls.append((path, start, end, uf, modality))
+        return {"fetched": 1, "items": 2, "errors": 0, "detail": "Concluído."}
+
+    monkeypatch.setattr(scheduler, "sync_pncp", fake_sync)
+    result = run(scheduler.scan_cycle(db_path, "SP", today=date(2026, 11, 23)))
+    assert [x["modality"] for x in result] == [6, 8]
+    assert len(calls) == 2
+    assert all(x[1] == date(2026, 11, 22) and x[2] == date(2026, 11, 23) for x in calls)
+    assert all(x[3] == "SP" for x in calls)
+
+
+def test_scan_cycle_survives_failure_of_one_modality(monkeypatch, db_path):
+    from asyncio import run
+    from app import scheduler
+
+    async def fake_sync(path, start, end, uf, modality):
+        if modality == 6:
+            raise RuntimeError("falha simulada")
+        return {"fetched": 1, "items": 1, "errors": 0, "detail": "Concluído."}
+
+    monkeypatch.setattr(scheduler, "sync_pncp", fake_sync)
+    result = run(scheduler.scan_cycle(db_path, "SP", today=date(2026, 11, 23)))
+    assert result[0]["errors"] == 1
+    assert result[1]["errors"] == 0
