@@ -185,6 +185,42 @@ def run() -> None:
                         path=str(output / ("assistant-" + name + ".png")),
                         full_page=True, animations="disabled",
                     )
+                    monitor_url = root + "/monitor?" + urlencode({
+                        "tender_id": control, "numero": 1,
+                    })
+                    page.goto(monitor_url, wait_until="networkidle")
+                    assert page.get_by_role(
+                        "heading", name="Regras de oportunidade"
+                    ).is_visible()
+                    if page.get_by_role(
+                        "button", name="★ Acompanhar este item"
+                    ).count():
+                        page.get_by_role(
+                            "button", name="★ Acompanhar este item"
+                        ).click()
+                        page.wait_for_url(root + "/monitor")
+                    assert page.get_by_role(
+                        "heading", name="Favoritos"
+                    ).is_visible()
+                    assert page.get_by_text(
+                        "Caderno CI - produto de teste fictício"
+                    ).count() >= 1
+                    if name == "desktop":
+                        page.get_by_label("Produto ou palavra-chave").fill("Caderno")
+                        page.get_by_role(
+                            "button", name="Criar regra"
+                        ).click()
+                        page.wait_for_url(root + "/monitor")
+                        assert page.get_by_text("Nova correspondência de regra").count() == 0
+                        assert page.get_by_text("Correspondência inicial de regra").count() >= 1
+                    assert page.evaluate(
+                        "() => document.documentElement.scrollWidth <= window.innerWidth + 1"
+                    ), "Overflow global em monitor " + name
+                    assert not problems, "Erro de script em monitor " + name + ": " + str(problems)
+                    page.screenshot(
+                        path=str(output / ("monitor-" + name + ".png")),
+                        full_page=True, animations="disabled",
+                    )
                     page.close()
                     print("Quote + AI visual smoke " + name + ": PASS")
                 browser.close()
