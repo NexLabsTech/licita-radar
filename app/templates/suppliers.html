@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#080910">
+  <title>Comparar fornecedores · LicitaRadar</title>
+  <link rel="stylesheet" href="/static/site.css">
+</head>
+<body class="radar-body">
+  <a class="skip-link" href="#principal">Pular para o conteúdo</a>
+  <div class="ambient ambient-lime" aria-hidden="true"></div>
+  <div class="ambient ambient-pink" aria-hidden="true"></div>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="/"><span class="brand-icon" aria-hidden="true">◉</span>
+        <span>licita<span class="brand-highlight">radar</span><small>INTELLIGENCE</small></span>
+      </a>
+      <a class="ghost-button" href="/#licitacoes">← Voltar ao radar</a>
+      <div class="account-area">
+        <form method="post" action="/logout">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <button class="logout-button" type="submit">Sair ↗</button>
+        </form>
+      </div>
+    </div>
+  </header>
+
+  <main id="principal" class="container suppliers-container">
+    <section class="glass-panel suppliers-hero">
+      <p class="eyebrow compact"><span class="sparkle" aria-hidden="true">✦</span> INTELIGÊNCIA DE CUSTO · FONTES MANUAIS</p>
+      <h1>Compare fornecedores. <span class="gradient-text">Proteja sua margem.</span></h1>
+      <p class="muted">Registre até 12 cotações por item e compare o custo total do lote com a mesma matemática auditada do LicitaRadar. Nenhum preço é pesquisado ou inventado automaticamente.</p>
+      <div class="monitor-pills">
+        <span class="monitor-pill">◎ {{ offers|length }}/12 cotações registradas</span>
+        <span class="monitor-pill">◈ Custos do lote em Decimal</span>
+        <span class="monitor-pill">✦ Fonte e data informadas</span>
+      </div>
+      <p class="suppliers-disclaimer">A fonte, preço e disponibilidade são informações que você registrou e ainda precisam de conferência. O fornecedor mais barato não é necessariamente elegível, nem oferece entrega, qualidade ou documentação compatíveis com o edital.</p>
+    </section>
+
+    <section class="glass-panel panel" aria-labelledby="supplier-item-title">
+      <div class="panel-title">
+        <div><p class="eyebrow compact">ITEM DO PNCP</p>
+          <h2 id="supplier-item-title">{{ item.descricao }}</h2>
+          <p class="muted">{{ item.orgao }} · {{ item.municipio }}/{{ item.uf }} · Item {{ item.numero }}</p>
+        </div>
+        <a class="external-source" href="{{ item.link }}" target="_blank" rel="noopener noreferrer">Fonte oficial PNCP ↗</a>
+      </div>
+      <div class="suppliers-current">
+        <div><span>Fornecedor principal atual</span><strong>{{ current_quote.supplier if current_quote else "Sem cotação ativa" }}</strong></div>
+        <div><span>Piso financeiro da cotação ativa</span><strong>{% if analysis.min_viable %}R$ {{ analysis.min_viable }}{% else %}Não calculado{% endif %}</strong></div>
+        <div><span>Preço de referência oficial</span><strong>{% if analysis.reference %}R$ {{ analysis.reference }}{% else %}Não disponível{% endif %}</strong></div>
+      </div>
+      <div class="suppliers-actions">
+        <a class="table-link" href="/quote?tender_id={{ item.tender_id|urlencode }}&numero={{ item.numero }}">Abrir calculadora ↗</a>
+        <a class="table-link" href="/workspace?tender_id={{ item.tender_id|urlencode }}&numero={{ item.numero }}">Planejar oportunidade ↗</a>
+        <a class="table-link" href="/ai?tender_id={{ item.tender_id|urlencode }}&numero={{ item.numero }}">Analisar riscos com IA ↗</a>
+      </div>
+      {% if item.status != 1 %}<p class="workspace-warning">Situação PNCP do item: {% if item.status == 4 %}deserto{% elif item.status == 5 %}fracassado{% elif item.status == 2 %}homologado{% elif item.status == 3 %}cancelado{% else %}não identificada{% endif %}. Não presuma que existe licitação aberta para apresentar proposta.</p>{% endif %}
+    </section>
+
+    <div class="suppliers-layout">
+      <section class="glass-panel panel" aria-labelledby="add-supplier-title">
+        <div class="panel-title"><div>
+          <p class="eyebrow compact">NOVA COTAÇÃO</p>
+          <h2 id="add-supplier-title">Registrar preço e condições</h2>
+          <p class="muted">Preencha somente dados realmente fornecidos por mercado, distribuidor ou fornecedor. Valores zero somente quando esse custo não se aplica.</p>
+        </div><span class="panel-icon" aria-hidden="true">⌕</span></div>
+        <form method="post" action="/suppliers/add" class="suppliers-form">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <input type="hidden" name="tender_id" value="{{ item.tender_id }}">
+          <input type="hidden" name="numero" value="{{ item.numero }}">
+          <div class="suppliers-full"><label for="supplier">Nome do fornecedor / origem</label>
+            <input id="supplier" name="supplier" maxlength="120" required placeholder="Ex.: Distribuidor consultado" autocomplete="off">
+          </div>
+          <div><label for="supplier_unit_cost">Custo unitário (R$)</label>
+            <input id="supplier_unit_cost" type="number" name="unit_cost" min="0.01" max="100000000" step="0.01" required value="" inputmode="decimal">
+          </div>
+          <div><label for="supplier_freight">Frete do lote (R$)</label>
+            <input id="supplier_freight" type="number" name="freight" min="0" max="100000000" step="0.01" required value="0.00" inputmode="decimal">
+          </div>
+          <div><label for="supplier_packaging">Embalagem do lote (R$)</label>
+            <input id="supplier_packaging" type="number" name="packaging" min="0" max="100000000" step="0.01" required value="0.00" inputmode="decimal">
+          </div>
+          <div><label for="supplier_other">Outros custos (R$)</label>
+            <input id="supplier_other" type="number" name="other" min="0" max="100000000" step="0.01" required value="0.00" inputmode="decimal">
+          </div>
+          <div><label for="supplier_reserve">Reserva de risco (R$)</label>
+            <input id="supplier_reserve" type="number" name="risk_reserve" min="0" max="100000000" step="0.01" required value="0.00" inputmode="decimal">
+          </div>
+          <div><label for="supplier_tax">Tributos sobre receita (%)</label>
+            <input id="supplier_tax" type="number" name="tax_percent" min="0" max="99.99" step="0.01" required value="10.00" inputmode="decimal">
+          </div>
+          <div><label for="supplier_margin">Margem mínima desejada (%)</label>
+            <input id="supplier_margin" type="number" name="target_margin" min="0" max="99.99" step="0.01" required value="20.00" inputmode="decimal">
+          </div>
+          <div><label for="supplier_date">Data da cotação</label>
+            <input id="supplier_date" type="date" name="observed_on" min="2021-01-01" max="{{ today }}" value="{{ today }}" required>
+          </div>
+          <div class="suppliers-full"><label for="supplier_source">Link HTTPS da fonte (opcional)</label>
+            <input id="supplier_source" type="url" name="source_url" maxlength="550" placeholder="https://fornecedor.com.br/produto">
+          </div>
+          <div class="suppliers-full"><label for="supplier_note">Nota sobre estoque, frete ou condições (opcional)</label>
+            <textarea id="supplier_note" name="note" maxlength="250" rows="3" placeholder="Confirme especificação, prazo, estoque e validade."></textarea>
+          </div>
+          <button class="primary-button suppliers-full" type="submit">Salvar cotação do fornecedor <span aria-hidden="true">✦</span></button>
+        </form>
+        <p class="muted suppliers-fineprint">Salvar uma cotação no comparador não altera os cálculos do radar. Para isso, selecione explicitamente “Usar no cálculo principal”.</p>
+      </section>
+
+      <section class="glass-panel panel" aria-labelledby="offers-title">
+        <div class="panel-title"><div>
+          <p class="eyebrow compact">CUSTO TOTAL DE LOTE</p>
+          <h2 id="offers-title">Comparação registrada <span class="count">{{ offers|length }}</span></h2>
+          <p class="muted">Ordenada por custo total válido, nunca por chance de ganhar o edital.</p>
+        </div><span class="panel-icon" aria-hidden="true">◎</span></div>
+        <div class="supplier-offers">
+          {% for offer in offers %}
+          <article class="supplier-offer">
+            <div class="supplier-offer-top">
+              <strong>{{ offer.supplier }}</strong>
+              {% if offer.active %}<span class="supplier-tag active">Ativa no cálculo</span>
+              {% elif offer.analysis.status == 'desatualizada' %}<span class="supplier-tag stale">Desatualizada</span>
+              {% else %}<span class="supplier-tag">Registrada</span>{% endif %}
+            </div>
+            <p class="muted">Cadastrada em {{ offer.created_at[:10] }} · Cotação de {{ offer.observed_on }}</p>
+            <div class="supplier-figures">
+              <div><span>Custo do lote</span><strong>{% if offer.analysis.total_cost %}R$ {{ offer.analysis.total_cost }}{% else %}Não válido{% endif %}</strong></div>
+              <div><span>Piso para sua margem</span><strong>{% if offer.analysis.min_viable %}R$ {{ offer.analysis.min_viable }}{% else %}Não válido{% endif %}</strong></div>
+              <div><span>Lucro à referência</span><strong>{% if offer.analysis.profit_reference %}R$ {{ offer.analysis.profit_reference }}{% else %}Sem comparação{% endif %}</strong></div>
+              <div><span>Situação</span><strong>{{ "Margem condicionada" if offer.analysis.status == 'potencial_financeiro' else "Margem insuficiente" if offer.analysis.status == 'margem_insuficiente' else "Sem referência" if offer.analysis.status == 'sem_referencia' else "Revisar cotação" }}</strong></div>
+            </div>
+            {% if offer.note %}<p class="supplier-offer-note">{{ offer.note }}</p>{% endif %}
+            {% if offer.source_url %}<a class="table-link" href="{{ offer.source_url }}" target="_blank" rel="noopener noreferrer">Abrir fonte informada ↗</a>{% endif %}
+            <div class="supplier-offer-actions">
+              {% if not offer.active and offer.analysis.status not in ('desatualizada','invalida') %}
+              <form method="post" action="/suppliers/promote">
+                <input type="hidden" name="csrf" value="{{ csrf }}">
+                <input type="hidden" name="tender_id" value="{{ item.tender_id }}">
+                <input type="hidden" name="numero" value="{{ item.numero }}">
+                <input type="hidden" name="offer_id" value="{{ offer.id }}">
+                <button class="primary-button" type="submit">Usar no cálculo principal</button>
+              </form>
+              {% endif %}
+              <form method="post" action="/suppliers/remove">
+                <input type="hidden" name="csrf" value="{{ csrf }}">
+                <input type="hidden" name="tender_id" value="{{ item.tender_id }}">
+                <input type="hidden" name="numero" value="{{ item.numero }}">
+                <input type="hidden" name="offer_id" value="{{ offer.id }}">
+                <button class="supplier-remove" type="submit">Remover cotação</button>
+              </form>
+            </div>
+          </article>
+          {% else %}
+          <div class="monitor-empty-state">
+            <span aria-hidden="true">✧</span><strong>Nenhuma cotação cadastrada ainda.</strong>
+            <p>Registre preços reais de mais de um fornecedor para comparar custos e escolher a melhor alternativa informada.</p>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+    </div>
+    <footer>
+      <span><strong>◉ LicitaRadar</strong> · Comparação de fornecedores</span>
+      <span>Valores informados pelo usuário · Sem preço ao vivo · Sem lances automáticos</span>
+    </footer>
+  </main>
+</body>
+</html>
