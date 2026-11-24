@@ -188,6 +188,7 @@
             <td class="link-cell">
               <a class="table-link" href="{{ item.link }}" target="_blank" rel="noopener noreferrer">Ver edital ↗</a>
               <a class="table-link quote-link" href="/quote?tender_id={{ item.tender_id|urlencode }}&numero={{ item.numero }}">Custo e margem ↗</a>
+              <a class="table-link ai-link" href="/ai?tender_id={{ item.tender_id|urlencode }}&numero={{ item.numero }}">Analisar com IA ✦</a>
             </td>
           </tr>
           {% else %}
