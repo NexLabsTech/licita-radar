@@ -143,13 +143,19 @@
       <div class="panel-title">
         <div><p class="eyebrow compact">EXPLORADOR</p>
           <h2 id="items-title">Itens identificados <span class="count" id="filtered-count">{{ total }}</span></h2>
-          <p class="muted">Filtre a base coletada. O número de inscritos antes da disputa não está disponível neste sistema.</p>
+          <p class="muted">Categorias estimadas por descrição. Preços e margem só aparecem com cotações cadastradas por você. Inscritos atuais: não disponíveis.</p>
         </div>
         <a class="external-source" href="https://pncp.gov.br/app/editais" target="_blank" rel="noopener noreferrer">Portal oficial <span aria-hidden="true">↗</span></a>
       </div>
       <form method="get" action="/" class="filter-form" aria-label="Filtrar itens">
         <div class="search-wrap"><span aria-hidden="true">⌕</span><input name="q" value="{{ q }}" placeholder="Produto, palavra-chave ou município" aria-label="Pesquisar por palavra-chave"></div>
         <input name="uf" value="{{ uf }}" placeholder="UF" maxlength="2" aria-label="UF">
+        <select name="category" aria-label="Categoria do produto">
+          <option value="">Todas as categorias</option>
+          {% for key,label in categories.items() %}
+          <option value="{{ key }}" {% if key == category %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
         <select name="status" aria-label="Situação do item">
           <option value="0">Todas as situações</option>
           {% for code,name in statuses.items() %}
@@ -164,11 +170,25 @@
           <tbody id="items-body">
           {% for item in records %}
           <tr>
-            <td><strong>{{ item.descricao }}</strong><small>Item {{ item.numero }} · {{ item.data_publicacao or "data não publicada" }}</small></td>
+            <td><strong>{{ item.descricao }}</strong><small>Item {{ item.numero }} · {{ item.data_publicacao or "data não publicada" }}</small>
+              <small class="category-tag">{{ item.analysis.category_label }} · {{ item.analysis.ease }}</small>
+              {% if item.analysis.status == "potencial_financeiro" %}
+              <small class="finance-note finance-positive">Sua cotação indica margem possível. Revisar edital.</small>
+              {% elif item.analysis.status == "margem_insuficiente" %}
+              <small class="finance-note finance-negative">Sua cotação não atende a margem desejada.</small>
+              {% elif item.analysis.status == "desatualizada" %}
+              <small class="finance-note finance-negative">Cotação desatualizada. Revalidar.</small>
+              {% else %}
+              <small class="finance-note">Análise financeira: {{ "sem cotação" if item.analysis.status == "sem_cotacao" else "verificar" }}.</small>
+              {% endif %}
+            </td>
             <td><strong>{{ item.municipio or "Município não informado" }} / {{ item.uf }}</strong><small>{{ item.orgao }}</small></td>
             <td>{% if item.valor_total is not none %}R$ {{ "%.2f" | format(item.valor_total) }}{% else %}<span class="muted">Não informado / sigiloso</span>{% endif %}</td>
             <td><span class="status s{{ item.status }}">{{ statuses.get(item.status, "Não identificado") }}</span></td>
-            <td><a class="table-link" href="{{ item.link }}" target="_blank" rel="noopener noreferrer">Ver edital ↗</a></td>
+            <td class="link-cell">
+              <a class="table-link" href="{{ item.link }}" target="_blank" rel="noopener noreferrer">Ver edital ↗</a>
+              <a class="table-link quote-link" href="/quote?tender_id={{ item.tender_id|urlencode }}&numero={{ item.numero }}">Custo e margem ↗</a>
+            </td>
           </tr>
           {% else %}
           <tr><td colspan="5" class="empty"><span class="empty-icon" aria-hidden="true">◎</span>

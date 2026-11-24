@@ -2,7 +2,7 @@
 
 Radar pessoal de licitações de **produtos** com login único, coleta oficial do PNCP e identificação de itens **desertos** (código 4) e **fracassados** (código 5).
 
-> MVP em desenvolvimento na branch LR-MVP-WO-001. **Não é uma plataforma de lances**, não revela propostas sigilosas e não presume que um item deserto ainda esteja disponível. Informações devem ser conferidas no edital.
+> Código do MVP validado em CI; implantação pública ainda não concluída. **Não é uma plataforma de lances**, não revela propostas sigilosas e não presume que um item deserto ainda esteja disponível. Informações devem ser conferidas no edital.
 
 ## Iniciar localmente
 
@@ -49,6 +49,19 @@ A CI no GitHub Actions executa os checks em Python 3.12 e 3.13 em PRs e pushes p
 O limite de 20 publicações é deliberado e significa que a consulta **não é uma cobertura exaustiva** do período. Com `AUTO_SCAN_ENABLED=1` e servidor ligado, o aplicativo consulta automaticamente as publicações de ontem e hoje a cada `AUTO_SCAN_INTERVAL_MINUTES` (30 a 1440; padrão 360) para a UF `AUTO_SCAN_UF`. São duas modalidades por ciclo, cada uma com limite de 20 publicações. A varredura não acontece se o servidor estiver desligado. O dashboard mostra apenas os registros efetivamente coletados, além de mudanças de situação observadas entre coletas. A rota autenticada `/api/changes` expõe esse histórico. Sem alertas externos ainda.
 
 **Persistência:** banco SQLite no caminho `DB_PATH`. Em Docker/produção, monte volume persistente em `/app/data` e execute um worker. Use HTTPS, segredos externos e `COOKIE_SECURE=1`. Sem TLS ou volume persistente, não considere o deploy pronto para produção.
+
+
+## Categorias e cálculo de margem
+
+No radar, filtre por categoria indicativa (classificação por palavras da descrição), abra **Custo e margem** e informe uma cotação manual do fornecedor. A aplicação salva custos privados no SQLite sem divulgar credenciais, valida a entrada e recalcula o resultado ao acessar o item novamente. Se descrição/quantidade mudar no PNCP, a cotação antiga é marcada como desatualizada, nunca aplicada silenciosamente.
+
+Matemática por lote (Decimal com arredondamento para cima no piso):
+- Custo do lote = custo unitário × quantidade + frete + embalagem + outros + reserva.
+- Ponto de equilíbrio = custo / (1 − alíquota sobre receita).
+- **Piso de venda com margem alvo** = custo / (1 − alíquota sobre receita − margem desejada).
+- Lucro estimado ao preço de referência = valor publicado × (1 − alíquota) − custo.
+
+**Importante:** o piso é o menor preço viável para sua margem, não um "lance máximo" ou sugestão de preço vencedor. O valor de referência publicado pode ser sigiloso, não garante venda nem que o item esteja aberto. Faça conferência de tributos por seu regime, prazo, documentação e especificações do edital. Não há cotações de fornecedores em tempo real nem recomendação gerada por LLM nesta etapa.
 
 ## Links de referência
 

@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#080910">
+  <title>Cotação e margem · LicitaRadar</title>
+  <link rel="stylesheet" href="/static/site.css">
+</head>
+<body class="radar-body">
+  <a class="skip-link" href="#principal">Pular para conteúdo</a>
+  <div class="ambient ambient-lime" aria-hidden="true"></div>
+  <div class="ambient ambient-pink" aria-hidden="true"></div>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="/" aria-label="LicitaRadar, início">
+        <span class="brand-icon" aria-hidden="true">◉</span>
+        <span>licita<span class="brand-highlight">radar</span><small>INTELLIGENCE</small></span>
+      </a>
+      <a class="ghost-button" href="/#licitacoes">← Voltar ao radar</a>
+      <div class="account-area">
+        <form method="post" action="/logout">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <button class="logout-button" type="submit">Sair ↗</button>
+        </form>
+      </div>
+    </div>
+  </header>
+  <main class="container quote-container" id="principal">
+    <div class="quote-top">
+      <p class="eyebrow compact">INTELIGÊNCIA FINANCEIRA / CUSTOS PRÓPRIOS</p>
+      <h1>Calculadora de <span class="gradient-text">oportunidade.</span></h1>
+      <p class="muted">Analise a margem antes de participar. Nenhum preço de fornecedor é inventado ou obtido automaticamente.</p>
+    </div>
+    <section class="glass-panel panel quote-item" aria-labelledby="quote-item-title">
+      <div class="panel-title"><div>
+        <p class="eyebrow compact">ITEM OFICIAL · PNCP</p>
+        <h2 id="quote-item-title">{{ item.descricao }}</h2>
+        <p class="muted">{{ item.orgao }} · {{ item.municipio }} / {{ item.uf }} · Item {{ item.numero }}</p>
+      </div><a class="external-source" href="{{ item.link }}" target="_blank" rel="noopener noreferrer">Abrir edital ↗</a></div>
+      <div class="quote-meta">
+        <div><span>Categoria sugerida</span><strong>{{ analysis.category_label }}</strong></div>
+        <div><span>Facilidade indicativa</span><strong>{{ analysis.ease }}</strong></div>
+        <div><span>Quantidade oficial</span><strong>{{ item.quantidade if item.quantidade is not none else "Não informada" }}</strong></div>
+        <div><span>Preço de referência</span><strong>{% if item.valor_total is not none %}R$ {{ "%.2f"|format(item.valor_total) }}{% else %}Não informado / sigiloso{% endif %}</strong></div>
+        <div><span>Situação</span><strong>{% if item.status == 1 %}Em andamento{% elif item.status == 4 %}Deserto{% elif item.status == 5 %}Fracassado{% elif item.status == 2 %}Homologado{% else %}Confirmar no PNCP{% endif %}</strong></div>
+      </div>
+      {% if item.status in (4, 5) %}
+      <p class="quote-warning">Este item está marcado como {% if item.status == 4 %}deserto{% else %}fracassado{% endif %}. É um registro histórico, não uma disputa automaticamente disponível. Verifique eventual republicação.</p>
+      {% endif %}
+    </section>
+
+    <div class="quote-columns">
+      <section class="glass-panel panel" aria-labelledby="quote-form-title">
+        <div class="panel-title">
+          <div><p class="eyebrow compact">SEUS DADOS</p><h2 id="quote-form-title">Cotação do fornecedor</h2>
+            <p class="muted">Valores manuais em reais; custos fixos para o lote inteiro. A cotação é privada e editável.</p>
+          </div>
+          <span class="panel-icon" aria-hidden="true">◆</span>
+        </div>
+        {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+        <form method="post" action="/quote" class="quote-form">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <input type="hidden" name="tender_id" value="{{ item.tender_id }}">
+          <input type="hidden" name="numero" value="{{ item.numero }}">
+          <div class="full"><label for="supplier">Fornecedor / origem da cotação</label>
+            <input id="supplier" name="supplier" maxlength="120" required value="{{ form.supplier }}" placeholder="Ex.: atacadista consultado em 23/11" autocomplete="off"></div>
+          <div><label for="unit_cost">Custo de compra por unidade (R$)</label>
+            <input id="unit_cost" name="unit_cost" type="number" min="0.01" max="100000000" step="0.01" inputmode="decimal" required value="{{ form.unit_cost }}" placeholder="0,00"></div>
+          <div><label for="freight">Frete do lote (R$)</label>
+            <input id="freight" name="freight" type="number" min="0" max="100000000" step="0.01" inputmode="decimal" required value="{{ form.freight }}"></div>
+          <div><label for="packaging">Embalagem total (R$)</label>
+            <input id="packaging" name="packaging" type="number" min="0" max="100000000" step="0.01" inputmode="decimal" required value="{{ form.packaging }}"></div>
+          <div><label for="other">Outros custos do lote (R$)</label>
+            <input id="other" name="other" type="number" min="0" max="100000000" step="0.01" inputmode="decimal" required value="{{ form.other }}"></div>
+          <div><label for="risk_reserve">Reserva para imprevistos (R$)</label>
+            <input id="risk_reserve" name="risk_reserve" type="number" min="0" max="100000000" step="0.01" inputmode="decimal" required value="{{ form.risk_reserve }}"></div>
+          <div><label for="tax_percent">Tributos variáveis sobre venda (%)</label>
+            <input id="tax_percent" name="tax_percent" type="number" min="0" max="99.99" step="0.01" inputmode="decimal" required value="{{ form.tax_percent }}"></div>
+          <div class="full"><label for="target_margin">Margem mínima desejada sobre receita (%)</label>
+            <input id="target_margin" name="target_margin" type="number" min="0" max="99.99" step="0.01" inputmode="decimal" required value="{{ form.target_margin }}"></div>
+          <button class="primary-button full" type="submit">Salvar e calcular margem <span aria-hidden="true">→</span></button>
+        </form>
+      </section>
+      <section class="glass-panel panel" aria-labelledby="analysis-title">
+        <div class="panel-title"><div>
+          <p class="eyebrow compact">CÁLCULO TRANSPARENTE</p><h2 id="analysis-title">Resultado financeiro</h2>
+          <p class="muted">Estimativa determinística com sua cotação, não uma previsão da LLM.</p>
+        </div><span class="panel-icon" aria-hidden="true">◎</span></div>
+        <div class="verdict {% if analysis.status == 'margem_insuficiente' or analysis.status == 'desatualizada' %}verdict-risk{% endif %}" role="status">
+          <span class="verdict-dot" aria-hidden="true"></span>
+          {% if analysis.status == 'sem_cotacao' %}Cotação necessária
+          {% elif analysis.status == 'desatualizada' %}Cotação desatualizada
+          {% elif analysis.status == 'invalida' %}Dados insuficientes
+          {% elif analysis.status == 'sem_referencia' %}Sem valor público para comparar
+          {% elif analysis.status == 'margem_insuficiente' %}Margem abaixo da meta
+          {% else %}Potencial financeiro condicionado{% endif %}
+        </div>
+        <p class="quote-explanation">{{ analysis.note }}</p>
+        <div class="quote-results">
+          <div><span>Custo total do lote</span>
+            <strong>{% if analysis.total_cost is not none %}R$ {{ analysis.total_cost }}{% else %}Aguardando cotação{% endif %}</strong>
+          </div>
+          <div><span>Preço de equilíbrio (lote)</span>
+            <strong>{% if analysis.break_even is not none %}R$ {{ analysis.break_even }}{% else %}Não calculado{% endif %}</strong>
+          </div>
+          <div class="primary-result"><span>Piso para sua margem desejada</span>
+            <strong>{% if analysis.min_viable is not none %}R$ {{ analysis.min_viable }}{% else %}Não calculado{% endif %}</strong>
+          </div>
+          <div><span>Lucro estimado ao preço de referência</span>
+            <strong class="{% if analysis.profit_reference is not none and analysis.profit_reference|float < 0 %}negative{% endif %}">
+              {% if analysis.profit_reference is not none %}R$ {{ analysis.profit_reference }}{% else %}Não calculado{% endif %}</strong>
+          </div>
+          <div><span>Margem estimada sobre a referência</span>
+            <strong>{% if analysis.margin_reference is not none %}{{ analysis.margin_reference }}%{% else %}Não calculado{% endif %}</strong>
+          </div>
+          <div><span>Folga entre referência e piso</span>
+            <strong>{% if analysis.surplus is not none %}R$ {{ analysis.surplus }}{% else %}Não calculada{% endif %}</strong>
+          </div>
+        </div>
+        <p class="quote-disclaimer">O valor de referência não é o preço vencedor nem garantia de que o órgão aceitará o lance. Tributos variam por regime; cheque edital, especificações, prazo, estoque e capital de giro antes de decidir.</p>
+        <a class="ghost-button full-width" href="{{ item.link }}" target="_blank" rel="noopener noreferrer">Ver licitação na fonte oficial ↗</a>
+      </section>
+    </div>
+    <footer><span><strong>◉ LicitaRadar</strong> · Orçamento e decisão</span>
+      <span>Cotação informada pelo usuário · Não substitui conferência fiscal ou jurídica</span></footer>
+  </main>
+</body>
+</html>

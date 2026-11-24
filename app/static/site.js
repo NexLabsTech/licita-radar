@@ -51,11 +51,23 @@
   function itemRow(item) {
     const row = node("tr");
     const description = node("td");
+    const analysis = item.analysis || {};
     description.append(
       node("strong", "", item.descricao || "Sem descrição"),
       node("small", "", "Item " + String(item.numero ?? "?") + " · " +
-        String(item.data_publicacao || "data não publicada"))
+        String(item.data_publicacao || "data não publicada")),
+      node("small", "category-tag", (analysis.category_label || "Outros / a verificar") +
+        " · " + (analysis.ease || "Verificar especificações"))
     );
+    const financeLabels = {
+      sem_cotacao: "Análise financeira: sem cotação.",
+      desatualizada: "Cotação desatualizada. Revalidar.",
+      margem_insuficiente: "Sua cotação não atende à margem desejada.",
+      potencial_financeiro: "Sua cotação indica margem possível. Revisar edital.",
+      sem_referencia: "Sem preço de referência para comparar."
+    };
+    description.append(node("small", "finance-note", financeLabels[analysis.status] ||
+      "Análise financeira: verificar."));
     const location = node("td");
     location.append(
       node("strong", "", (item.municipio || "Município não informado") +
@@ -74,8 +86,15 @@
     const state = node("td");
     state.append(statusBadge(item.status));
 
-    const source = node("td");
+    const source = node("td", "link-cell");
     source.append(sourceLink(item.link, "Ver edital ↗"));
+    const quoteLink = node("a", "table-link quote-link", "Custo e margem ↗");
+    const query = new URLSearchParams({
+      tender_id: String(item.tender_id || ""),
+      numero: String(item.numero || "")
+    });
+    quoteLink.href = "/quote?" + query.toString();
+    source.append(quoteLink);
     row.append(description, location, amount, state, source);
     return row;
   }

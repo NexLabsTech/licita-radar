@@ -40,7 +40,8 @@ def run() -> None:
         with socket.socket() as sock:
             sock.bind(("127.0.0.1", 0))
             port = int(sock.getsockname()[1])
-        server = _server(port, str(Path(directory) / "visual.db"))
+        db_path = str(Path(directory) / "visual.db")
+        server = _server(port, db_path)
         thread = threading.Thread(target=server.run, daemon=True)
         thread.start()
         root = "http://127.0.0.1:" + str(port)
@@ -104,6 +105,69 @@ def run() -> None:
                     )
                     page.close()
                     print("Visual smoke " + name + ": PASS")
+                # Produto de CI explicitamente fictício, nunca apresentado como edital real.
+                from urllib.parse import urlencode
+
+                from app.storage import upsert_tender
+
+                control = "12345678000190-1-000007/2026"
+                upsert_tender(db_path, {
+                    "id": control, "cnpj": "12345678000190", "ano": 2026,
+                    "sequencial": 7, "orgao": "Órgão FICTÍCIO (teste CI)",
+                    "municipio": "Cidade CI", "uf": "SP",
+                    "objeto": "Amostra automatizada para testes, NÃO REAL",
+                    "data_publicacao": "2026-11-23", "abertura": None,
+                    "encerramento": None,
+                    "link": "https://pncp.gov.br/app/editais/12345678000190/2026/7",
+                }, [{
+                    "numeroItem": 1, "materialOuServico": "M",
+                    "descricao": "Caderno CI - produto de teste fictício",
+                    "situacaoCompraItemId": 1, "quantidade": 10,
+                    "valorTotal": 2000,
+                }])
+                quote_url = root + "/quote?" + urlencode({
+                    "tender_id": control, "numero": 1,
+                })
+                for name, width, height in (
+                    ("desktop", 1440, 1000), ("mobile", 390, 844),
+                ):
+                    page = browser.new_page(
+                        viewport={"width": width, "height": height},
+                        device_scale_factor=1, reduced_motion="reduce",
+                    )
+                    problems = []
+                    page.on("pageerror", lambda exception: problems.append(str(exception)))
+                    page.goto(root + "/login", wait_until="networkidle")
+                    page.get_by_label("Usuário").fill("visual-ci")
+                    page.get_by_label("Senha").fill("TesteVisualCI!2026Lime")
+                    page.get_by_role("button", name="Acessar o radar").click()
+                    page.wait_for_url(root + "/")
+                    page.goto(quote_url, wait_until="networkidle")
+                    assert page.get_by_role(
+                        "heading", name="Calculadora de oportunidade."
+                    ).is_visible()
+                    page.get_by_label("Fornecedor / origem da cotação").fill("Fornecedor TESTE CI")
+                    for field, value in {
+                        "unit_cost": "100.00", "freight": "100.00",
+                        "packaging": "20.00", "other": "30.00",
+                        "risk_reserve": "50.00", "tax_percent": "10.00",
+                        "target_margin": "20.00",
+                    }.items():
+                        page.locator("#" + field).fill(value)
+                    page.get_by_role("button", name="Salvar e calcular margem").click()
+                    page.wait_for_url(quote_url)
+                    assert page.get_by_text("Potencial financeiro condicionado").is_visible()
+                    assert page.get_by_text("R$ 1714.29").is_visible()
+                    assert page.evaluate(
+                        "() => document.documentElement.scrollWidth <= window.innerWidth + 1"
+                    ), "Overflow global na calculadora de " + name
+                    assert not problems, "Script na calculadora " + name + ": " + str(problems)
+                    page.screenshot(
+                        path=str(output / ("quote-" + name + ".png")),
+                        full_page=True, animations="disabled",
+                    )
+                    page.close()
+                    print("Quote visual smoke " + name + ": PASS")
                 browser.close()
         finally:
             server.should_exit = True

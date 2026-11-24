@@ -1,17 +1,30 @@
 """Banco SQLite local e importação idempotente de itens de material."""
 import sqlite3
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
+
+from .intelligence import classify
 
 STATUSES = {1: "Em andamento", 2: "Homologado", 3: "Cancelado", 4: "Deserto", 5: "Fracassado"}
 
 
+@contextmanager
 def connection(path: str):
+    """Transação com commit/rollback e fechamento garantido do SQLite."""
     db = sqlite3.connect(path, timeout=15)
-    db.row_factory = sqlite3.Row
-    db.execute("PRAGMA foreign_keys=ON")
-    db.execute("PRAGMA busy_timeout=15000")
-    return db
+    try:
+        db.row_factory = sqlite3.Row
+        db.create_function("lr_category", 1, classify, deterministic=True)
+        db.execute("PRAGMA foreign_keys=ON")
+        db.execute("PRAGMA busy_timeout=15000")
+        yield db
+        db.commit()
+    except BaseException:
+        db.rollback()
+        raise
+    finally:
+        db.close()
 
 
 def init_db(path: str):
@@ -118,7 +131,8 @@ def upsert_tender(path: str, tender: dict, items: list[dict]) -> int:
     return len(valid)
 
 
-def list_items(path: str, q: str = "", uf: str = "", status: int = 0, page: int = 1):
+def list_items(path: str, q: str = "", uf: str = "", status: int = 0,
+               page: int = 1, category: str = ""):
     predicates, values = [], []
     if q:
         predicates.append("(i.descricao LIKE ? ESCAPE '\\' OR t.objeto LIKE ? ESCAPE '\\' OR t.municipio LIKE ? ESCAPE '\\')")
@@ -130,6 +144,9 @@ def list_items(path: str, q: str = "", uf: str = "", status: int = 0, page: int 
     if status in STATUSES:
         predicates.append("i.status = ?")
         values.append(status)
+    if category:
+        predicates.append("lr_category(i.descricao) = ?")
+        values.append(category)
     where = (" WHERE " + " AND ".join(predicates)) if predicates else ""
     with connection(path) as db:
         total = db.execute("SELECT COUNT(*) FROM items i JOIN tenders t ON t.id=i.tender_id" + where, values).fetchone()[0]
