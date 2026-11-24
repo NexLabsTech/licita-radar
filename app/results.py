@@ -207,12 +207,15 @@ async def refresh_item_results(
     if old:
         try:
             last = datetime.fromisoformat(old["checked_at"])
-            if when - last < timedelta(seconds=COOLDOWN_SECONDS):
-                raise ResultFetchError(
-                    "Consulta recente. Tente novamente após 60 segundos.", 429
-                )
         except ValueError:
-            pass
+            last = None
+        if (
+            last is not None and last.tzinfo is not None
+            and when - last < timedelta(seconds=COOLDOWN_SECONDS)
+        ):
+            raise ResultFetchError(
+                "Consulta recente. Tente novamente após 60 segundos.", 429
+            )
     checked = when.isoformat()
     try:
         async with httpx.AsyncClient(
