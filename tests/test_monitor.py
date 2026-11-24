@@ -272,8 +272,8 @@ def test_read_api_and_delete_rules_preserve_history(client, db):
 def test_failed_import_does_not_leave_orphan_alerts(db):
     create_rule(db, "papel sulfite")
     t = tender()
-    with pytest.raises((sqlite3.IntegrityError, ValueError, TypeError)):
-        # Item inválido: campo quantidade com tipo incompatível para SQLite.
-        upsert_tender(db, t, [item(quantity={"invalid": "object"})])
+    with pytest.raises((sqlite3.ProgrammingError, sqlite3.InterfaceError)):
+        # A primeira linha poderia gerar alerta; a segunda falha e tudo volta.
+        upsert_tender(db, t, [item(), item(n=2, quantity={"invalid": "object"})])
     assert monitor_data(db)["unread"] == 0
     assert not monitor_data(db)["alerts"]
