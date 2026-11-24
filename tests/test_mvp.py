@@ -224,7 +224,7 @@ def test_rate_limit_and_csrf_recovery(client):
 
 
 def test_session_cookie_malformed_is_rejected(client):
-    client.cookies.set("lr_session", "%%%%.âââ")
+    client.cookies.set("lr_session", "%%%%.bad")
     assert client.get("/api/items").status_code == 401
 
 
