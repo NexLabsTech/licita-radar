@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#080910">
+  <title>Resultados oficiais · LicitaRadar</title>
+  <link rel="stylesheet" href="/static/site.css">
+</head>
+<body class="radar-body">
+  <a class="skip-link" href="#principal">Pular para conteúdo</a>
+  <div class="ambient ambient-lime" aria-hidden="true"></div>
+  <div class="ambient ambient-pink" aria-hidden="true"></div>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="/" aria-label="LicitaRadar, início">
+        <span class="brand-icon" aria-hidden="true">◉</span>
+        <span>licita<span class="brand-highlight">radar</span><small>INTELLIGENCE</small></span>
+      </a>
+      <a class="ghost-button" href="/#licitacoes">← Voltar ao radar</a>
+      <div class="account-area">
+        <form method="post" action="/logout">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <button class="logout-button" type="submit">Sair ↗</button>
+        </form>
+      </div>
+    </div>
+  </header>
+  <main id="principal" class="container results-container">
+    <section class="glass-panel results-hero">
+      <p class="eyebrow compact"><span class="sparkle" aria-hidden="true">✦</span> EVIDÊNCIA PÚBLICA DO PNCP</p>
+      <h1>Resultados oficiais <span class="gradient-text">do item.</span></h1>
+      <p class="muted">Consulte preços e quantidades homologados quando publicados. São registros de resultados, não cotações atuais nem contagem de licitantes.</p>
+      <div class="results-pills">
+        <span class="monitor-pill">◎ {{ snapshot.result_records }} resultados armazenados</span>
+        {% if snapshot.observation %}
+        <span class="monitor-pill">
+          {% if snapshot.observation.state == "ok" %}Consulta concluída
+          {% elif snapshot.observation.state == "empty" %}Sem resultados publicados na última consulta
+          {% else %}Consulta falhou, snapshot anterior preservado{% endif %}
+        </span>
+        {% else %}
+        <span class="monitor-pill">Ainda não consultado</span>
+        {% endif %}
+      </div>
+      <p class="results-disclaimer">O PNCP não fornece aqui o total de empresas que apresentaram proposta. Vários registros podem pertencer a uma mesma contratação, classificação ou fornecedor. Não presuma que o item continua aberto.</p>
+    </section>
+
+    <section class="glass-panel panel" aria-labelledby="results-item-heading">
+      <div class="panel-title">
+        <div>
+          <p class="eyebrow compact">CONTRATAÇÃO ORIGINAL</p>
+          <h2 id="results-item-heading">{{ item.descricao }}</h2>
+          <p class="muted">{{ item.orgao }} · {{ item.municipio }}/{{ item.uf }} · Item {{ item.numero }}</p>
+        </div>
+        <a class="external-source" href="{{ item.link }}" target="_blank" rel="noopener noreferrer">Abrir PNCP ↗</a>
+      </div>
+      {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+      <div class="results-metadata">
+        <div><span>Situação observada do item</span>
+          <strong>{% if item.status == 1 %}Em andamento{% elif item.status == 2 %}Homologado{% elif item.status == 3 %}Cancelado{% elif item.status == 4 %}Deserto{% elif item.status == 5 %}Fracassado{% else %}Não identificada{% endif %}</strong>
+        </div>
+        <div><span>Resultados publicados e armazenados</span><strong>{{ snapshot.result_records }}</strong></div>
+        <div><span>Última consulta manual</span><strong>{{ snapshot.observation.checked_at[:19] ~ " UTC" if snapshot.observation else "Nunca" }}</strong></div>
+      </div>
+      <div class="results-actions">
+        <form action="/results/refresh" method="post">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <input type="hidden" name="tender_id" value="{{ item.tender_id }}">
+          <input type="hidden" name="numero" value="{{ item.numero }}">
+          <button class="primary-button" type="submit">Atualizar resultados PNCP <span aria-hidden="true">↻</span></button>
+        </form>
+        <a class="ghost-button" href="/quote?tender_id={{ item.tender_id|urlencode }}&numero={{ item.numero }}">Custo e margem ↗</a>
+        <a class="ghost-button" href="/ai?tender_id={{ item.tender_id|urlencode }}&numero={{ item.numero }}">Análise IA ✦</a>
+      </div>
+      {% if snapshot.observation %}
+      <p class="muted results-small">Fonte consultada:
+        <a class="table-link" href="{{ snapshot.observation.source_url }}" target="_blank" rel="noopener noreferrer">API de resultados PNCP ↗</a>.
+        Consultas limitadas a uma por minuto por item. Os dados podem mudar na origem.
+      </p>
+      {% endif %}
+    </section>
+
+    <section class="glass-panel panel" aria-labelledby="results-heading">
+      <div class="panel-title"><div>
+        <p class="eyebrow compact">SNAPSHOT DA ÚLTIMA RESPOSTA VÁLIDA</p>
+        <h2 id="results-heading">Registros de resultados <span class="count">{{ snapshot.result_records }}</span></h2>
+        <p class="muted">Valores unitários publicados pelo PNCP, preservados com quatro casas decimais. A situação abaixo é do resultado, não do item.</p>
+      </div><span class="panel-icon" aria-hidden="true">◎</span></div>
+      {% if snapshot.results %}
+      <div class="results-cards">
+      {% for result in snapshot.results %}
+        <article class="results-record">
+          <div class="results-record-header">
+            <span class="{{ 'results-state-cancelled' if result.status == 2 else 'results-state' }}">
+              {{ result_statuses.get(result.status, "Situação não identificada") }}
+            </span>
+            <span class="muted">Resultado PNCP #{{ result.seq }}</span>
+          </div>
+          <h3>{{ result.supplier }}</h3>
+          <p class="muted">{{ 'Pessoa jurídica' if result.person_type == 'PJ' else 'Identificação restrita na interface' }}</p>
+          <div class="results-figures">
+            <div><span>Valor unitário homologado</span>
+              <strong>{% if result.unit_price is not none %}R$ {{ result.unit_price }}{% else %}Não divulgado{% endif %}</strong>
+            </div>
+            <div><span>Quantidade homologada</span>
+              <strong>{{ result.quantity if result.quantity is not none else "Não divulgada" }}</strong>
+            </div>
+            <div><span>Ordem SRP, se informada</span>
+              <strong>{{ result.ranking_srp if result.ranking_srp is not none else "Não informada" }}</strong>
+            </div>
+            <div><span>Data do resultado</span>
+              <strong>{{ result.result_date or "Não informada" }}</strong>
+            </div>
+          </div>
+          {% if result.status == 2 %}
+          <p class="results-cancel-note">Este resultado foi cancelado na origem e não deve ser tratado como preço homologado ativo.</p>
+          {% endif %}
+        </article>
+      {% endfor %}
+      </div>
+      {% else %}
+      <div class="monitor-empty-state"><span aria-hidden="true">✧</span>
+        {% if snapshot.observation and snapshot.observation.state == 'empty' %}
+        <strong>Nenhum resultado cadastrado nesta consulta.</strong>
+        <p>Isso não significa zero licitantes. O PNCP pode não ter resultados publicados para este item.</p>
+        {% elif snapshot.observation and snapshot.observation.state == 'error' %}
+        <strong>Não foi possível conferir a fonte nesta tentativa.</strong>
+        <p>Tente novamente. Um erro de API não comprova falta de resultados.</p>
+        {% else %}
+        <strong>Consulta ainda não realizada.</strong>
+        <p>Atualize os resultados para verificar os registros públicos disponíveis para este item.</p>
+        {% endif %}
+      </div>
+      {% endif %}
+      <p class="muted results-small">Valores históricos homologados não são cotações disponíveis para compra, custos atuais ou orientação para lance. Compare as especificações, unidade, prazo e tributos diretamente nos editais.</p>
+    </section>
+    <footer><span><strong>◉ LicitaRadar</strong> · Evidências do PNCP</span>
+      <span>Sem contagem inventada de participantes · Sem proposta automática</span></footer>
+  </main>
+</body>
+</html>
