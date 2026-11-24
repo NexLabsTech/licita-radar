@@ -46,8 +46,8 @@ def validate_email(value: str) -> str:
     return value
 
 
-def _write_new(path: Path, data: str) -> None:
-    descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+def _write_new(path: Path, data: str, mode: int = 0o600) -> None:
+    descriptor = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, mode)
     with os.fdopen(descriptor, "w", encoding="utf-8") as handle:
         handle.write(data.rstrip("\n") + "\n")
         handle.flush()
@@ -75,8 +75,10 @@ def initialize(
     root.chmod(0o700)
     secure = root / "secrets"
     secure.mkdir(mode=0o700, exist_ok=False)
-    _write_new(secure / "password_hash", hash_password(password))
-    _write_new(secure / "session_secret", secrets.token_urlsafe(48))
+    if os.getgid() == 0:
+        raise ValueError("Configure como usuário não root para isolar grupo de segredos.")
+    _write_new(secure / "password_hash", hash_password(password), mode=0o640)
+    _write_new(secure / "session_secret", secrets.token_urlsafe(48), mode=0o640)
     _write_new(root / "app.env", (
         "APP_ENV=production\n"
         "COOKIE_SECURE=1\n"
@@ -89,7 +91,10 @@ def initialize(
         "AI_PROVIDER=deepseek\n"
         "AI_DAILY_LIMIT=10"
     ))
-    _write_new(root / "compose.env", f"RADAR_DOMAIN={valid_domain}\nACME_EMAIL={valid_email}")
+    _write_new(root / "compose.env", (
+        f"RADAR_DOMAIN={valid_domain}\nACME_EMAIL={valid_email}\n"
+        f"RADAR_SECRET_GID={os.getgid()}"
+    ))
     preflight(root)
 
 
@@ -107,12 +112,12 @@ def _parse_env(path: Path) -> dict[str, str]:
     return result
 
 
-def _safe_private_file(path: Path) -> str:
+def _safe_private_file(path: Path, expected_gid: int) -> str:
     if path.is_symlink() or not path.is_file() or path.stat().st_size > 8192:
         raise ValueError("Segredo indisponível ou inválido.")
     mode = stat.S_IMODE(path.stat().st_mode)
-    if mode & 0o077:
-        raise ValueError("Arquivo de credencial deve ser privado (chmod 600).")
+    if mode != 0o640 or path.stat().st_gid != expected_gid:
+        raise ValueError("Arquivo de credencial deve ter chmod 640 e grupo do operador.")
     return path.read_text(encoding="utf-8").rstrip("\r\n")
 
 
@@ -144,9 +149,12 @@ def preflight(root: Path) -> dict[str, str]:
 
     domain = validate_domain(deploy.get("RADAR_DOMAIN", ""))
     validate_email(deploy.get("ACME_EMAIL", ""))
-    if not valid_password_hash(_safe_private_file(root / "secrets" / "password_hash")):
+    gid = int(deploy.get("RADAR_SECRET_GID", "-1"))
+    if gid == 0 or gid != os.getgid():
+        raise ValueError("Grupo do operador inconsistente; rejeitado.")
+    if not valid_password_hash(_safe_private_file(root / "secrets" / "password_hash", gid)):
         raise ValueError("Hash de login inválido.")
-    if len(_safe_private_file(root / "secrets" / "session_secret")) < 32:
+    if len(_safe_private_file(root / "secrets" / "session_secret", gid)) < 32:
         raise ValueError("Segredo de sessão insuficiente.")
     return {"domain": domain, "user": app["LOGIN_USERNAME"]}
 
