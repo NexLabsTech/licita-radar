@@ -107,7 +107,7 @@ jobs:
             --mount "type=bind,source=${PWD}/ops/runtime/secrets/password_hash,target=/run/secrets/login_password_hash,readonly" \
             --mount "type=bind,source=${PWD}/ops/runtime/secrets/session_secret,target=/run/secrets/session_secret,readonly" \
             licitaradar:ops-ci
-          trap 'docker logs radar-ops-ci 2>&1 | tail -30; docker rm -f radar-ops-ci >/dev/null 2>&1 || true' EXIT
+          # Não remova o contêiner aqui: o passo seguinte verifica backup e reinício.
           for attempt in $(seq 1 35); do
             if docker exec radar-ops-ci python -c "import urllib.request; assert urllib.request.urlopen('http://127.0.0.1:8000/healthz',timeout=2).status == 200" 2>/dev/null; then
               break
