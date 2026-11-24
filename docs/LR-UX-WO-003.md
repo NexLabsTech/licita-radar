@@ -1,6 +1,6 @@
 # LR-UX-WO-003 · Neon Glass UI
 
-**Status:** EXECUTING / AWAITING CI. **Base SHA:** dc6aaa9c19cde4dbf0be1f86929ea4c17c86bd69. **Branch:** feat/lr-ux-wo-003. **Risk:** STANDARD (interface privada com login existente).
+**Status:** APPROVED (código UX pré-produção; deploy e release bloqueados). **Base SHA:** dc6aaa9c19cde4dbf0be1f86929ea4c17c86bd69. **Branch:** feat/lr-ux-wo-003. **Risk:** STANDARD (interface privada com login existente).
 
 **OBJECTIVE:** redesenhar LicitaRadar com vidro forte, fundo grafite e somente dois destaques cromáticos, lime #c1ff42 e magenta #ff4ca8; tornar a interface responsiva e acessível e atualizar a visualização local periodicamente.
 
@@ -16,4 +16,4 @@
 
 **TESTS:** ruff check app tests, python -m compileall -q app tests, python -m pytest -q, node --check app/static/site.js; smoke PNCP não bloqueante. **DELIVERABLES:** código, testes, CI, PR, Evidence Bundle e auditoria pt-BR. **REVIEW FORMAT:** APPROVED / CORRECTION REQUIRED / BLOCKED + base/head SHA e evidências. **STOP CONDITION:** não iniciar motor financeiro/LLM antes de auditar esta PR, não declarar deploy.
 
-**Evidence Bundle:** pendente de CI. **Checkpoint Delta proposto:** registrar UX e atualização visual local, sem sugerir monitoramento instantâneo do PNCP ou versão publicada.
+**Evidence Bundle:** base dc6aaa9c19cde4dbf0be1f86929ea4c17c86bd69; head auditado 9c5ff9e125b75d9971dfb0ccde4716b19b3a257b; GitHub Actions run 45308363269: Ruff/compileall/JavaScript check PASS, pytest 20/20 por matriz Python 3.12/3.13 PASS, PNCP live smoke PASS. Chromium desktop 1440x1000 e mobile 390x844 PASS (login, dashboard, refresh interno, sem erros de script nem overflow global). Artifact licitaradar-ux-screenshots com 4 PNGs (dashboard/login desktop/mobile), SHA256 do artifact 628c3f2a66e1ba70c3f412cb0849383e44b6c4e76ef48f4c96576ca057ff1b63. Auditoria registrada em pt-BR na PR #3: APPROVED para incremento visual. Aviso de depreciação testclient permanece. Sem deploy, sem browser testing Safari/Firefox, sem LLM/cálculo financeiro. **Checkpoint Delta aprovado para registrar:** UX premium e polling visual local validado por testes; release continua incompleta.
