@@ -1,21 +1,41 @@
 <!doctype html>
 <html lang="pt-BR">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Entrar · LicitaRadar</title><link rel="stylesheet" href="/static/site.css"></head>
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#080910">
+  <title>Acesso privado · LicitaRadar</title>
+  <link rel="stylesheet" href="/static/site.css">
+</head>
 <body class="login-body">
-<main class="login-card">
-  <div class="logo"><span class="logo-dot">◉</span> LicitaRadar</div>
-  <p class="muted">Seu painel particular de inteligência em licitações.</p>
-  <h1>Acesso restrito</h1>
-  {% if error %}<p class="error" role="alert">Usuário ou senha incorretos.</p>{% endif %}
-  <form method="post" action="/login">
-    <input type="hidden" name="csrf" value="{{ csrf }}">
-    <label for="username">Usuário</label>
-    <input id="username" name="username" autocomplete="username" required maxlength="100" autofocus>
-    <label for="password">Senha</label>
-    <input id="password" type="password" name="password" autocomplete="current-password" required>
-    <button type="submit">Entrar no painel →</button>
-  </form>
-  <p class="hint">Sem cadastro público. Credenciais configuradas somente no servidor.</p>
-</main>
-</body></html>
+  <div class="ambient ambient-lime" aria-hidden="true"></div>
+  <div class="ambient ambient-pink" aria-hidden="true"></div>
+  <main class="login-shell">
+    <div class="login-intro">
+      <span class="eyebrow"><span class="sparkle" aria-hidden="true">✦</span> INTELIGÊNCIA PARA QUEM FORNECE</span>
+      <span class="login-orbit" aria-hidden="true"><span class="orbit-ring orbit-one"></span><span class="orbit-ring orbit-two"></span><span class="orbit-core">◉</span></span>
+      <h1>Encontre oportunidades.<br><span class="gradient-text">Decida com clareza.</span></h1>
+      <p>Um radar particular de licitações, com dados oficiais, histórico e informações para sua operação.</p>
+      <span class="login-micro">DADOS PÚBLICOS. ACESSO PRIVADO.</span>
+    </div>
+    <section class="login-card glass-panel" aria-labelledby="login-title">
+      <div class="brand"><span class="brand-icon" aria-hidden="true">◉</span><span>licita<span class="brand-highlight">radar</span><small>INTELLIGENCE</small></span></div>
+      <div class="login-heading">
+        <span class="lock-mark" aria-hidden="true">⌑</span>
+        <p class="eyebrow compact">ÁREA RESTRITA</p>
+        <h2 id="login-title">Bem-vindo de volta.</h2>
+        <p class="muted">Entre com suas credenciais para acessar o radar.</p>
+      </div>
+      {% if error %}<p class="error" role="alert">Usuário ou senha incorretos.</p>{% endif %}
+      <form method="post" action="/login">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <label for="username">Usuário</label>
+        <input id="username" name="username" autocomplete="username" maxlength="100" placeholder="Seu usuário" required autofocus>
+        <label for="password">Senha</label>
+        <input id="password" type="password" name="password" autocomplete="current-password" placeholder="Sua senha" required>
+        <button class="primary-button login-submit" type="submit">Acessar o radar <span aria-hidden="true">→</span></button>
+      </form>
+      <p class="hint"><span aria-hidden="true">◆</span> Acesso individual. Sem registro público ou criação de contas.</p>
+    </section>
+  </main>
+</body>
+</html>

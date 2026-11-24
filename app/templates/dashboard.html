@@ -1,105 +1,217 @@
 <!doctype html>
 <html lang="pt-BR">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Dashboard · LicitaRadar</title><link rel="stylesheet" href="/static/site.css"></head>
-<body>
-<header class="topbar">
-  <div class="brand"><span class="logo-dot">◉</span> LicitaRadar <span class="version">MVP · PNCP</span></div>
-  <form method="post" action="/logout"><input type="hidden" name="csrf" value="{{ csrf }}">
-    <button class="subtle" type="submit">Sair da conta ↗</button></form>
-</header>
-<main class="container">
-  <div class="hero">
-    <div><p class="eyebrow">RADAR DE COMPRAS PÚBLICAS</p><h1>Oportunidades em foco.</h1>
-      <p class="muted">Itens de materiais publicados no PNCP. Somente informações verificadas na fonte oficial.</p></div>
-    <div class="source-pill">● Fonte: <a href="https://pncp.gov.br/app/editais" target="_blank" rel="noopener noreferrer">PNCP ↗</a></div>
-  </div>
-  <section class="stats" aria-label="Estatísticas armazenadas">
-    <div class="stat"><small>Itens armazenados</small><strong>{{ counts.values() | sum }}</strong><span>Importações locais</span></div>
-    <div class="stat"><small>Desertos</small><strong class="gold">{{ counts.get(4,0) }}</strong><span>Sem interessados</span></div>
-    <div class="stat"><small>Fracassados</small><strong class="pink">{{ counts.get(5,0) }}</strong><span>Sem vencedor</span></div>
-    <div class="stat"><small>Em andamento</small><strong class="cyan">{{ counts.get(1,0) }}</strong><span>Situação declarada pelo PNCP</span></div>
-  </section>
-  <section class="panel sync-panel">
-    <div class="panel-title"><div><h2>Atualizar radar</h2><p class="muted">Consulta manual de até 7 dias e 20 publicações por execução. Varredura automática: {% if auto_scan %}<strong>ligada, a cada {{ scan_interval }} min ({{ scan_uf }})</strong>{% else %}<strong>desligada</strong>{% endif %}. Depende do servidor ligado.</p></div></div>
-    <form class="sync-form" method="post" action="/sync">
-      <input type="hidden" name="csrf" value="{{ csrf }}">
-      <div><label for="start">Publicação de</label><input id="start" type="date" name="start" value="{{ start }}" required></div>
-      <div><label for="end">Até</label><input id="end" type="date" name="end" value="{{ end }}" required></div>
-      <div><label for="suf">Estado (opcional)</label><input id="suf" name="uf" maxlength="2" placeholder="SP"></div>
-      <div><label for="modality">Modalidade</label><select id="modality" name="modality"><option value="6">Pregão eletrônico</option><option value="8">Dispensa</option></select></div>
-      <button type="submit">Sincronizar PNCP ↻</button>
-    </form>
-    {% if last_sync %}
-    <p class="sync-result {% if last_sync.errors %}warn{% endif %}">
-      Última consulta: {{ last_sync.started_at[:19] }} UTC.
-      Compras processadas: {{ last_sync.fetched }} · itens de material: {{ last_sync.material_items }} · erros: {{ last_sync.errors }}.
-      {% if last_sync.errors %}Alguns dados podem não ter sido importados. {{ last_sync.details }}{% endif %}
-    </p>
-    {% else %}
-    <p class="sync-result">Nenhuma coleta realizada. O painel começa vazio, sem números fictícios.</p>
-    {% endif %}
-  </section>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#080910">
+  <meta name="description" content="LicitaRadar: painel privado de acompanhamento de compras públicas.">
+  <title>Radar de oportunidades · LicitaRadar</title>
+  <link rel="stylesheet" href="/static/site.css">
+  <script src="/static/site.js" defer></script>
+</head>
+<body class="radar-body">
+  <a class="skip-link" href="#principal">Pular para o conteúdo</a>
+  <div class="ambient ambient-lime" aria-hidden="true"></div>
+  <div class="ambient ambient-pink" aria-hidden="true"></div>
 
-  <section class="panel">
-    <div class="panel-title"><div><h2>Mudanças observadas <span class="count">{{ events|length }}</span></h2>
-      <p class="muted">Somente alterações detectadas nas coletas deste banco. Uma nova ocorrência não significa edital reaberto.</p></div></div>
-    {% for event in events %}
-    <div class="event-row">
-      <div><strong>{{ event.descricao }}</strong>
-        <small>{{ event.municipio }} / {{ event.uf }} · Item {{ event.numero }} · {{ event.changed_at[:19] }} UTC</small>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="/" aria-label="LicitaRadar, início">
+        <span class="brand-icon" aria-hidden="true">◉</span>
+        <span>licita<span class="brand-highlight">radar</span><small>INTELLIGENCE</small></span>
+      </a>
+      <nav class="main-nav" aria-label="Seções do painel">
+        <a class="nav-link active" href="#principal">Visão geral</a>
+        <a class="nav-link" href="#licitacoes">Licitações</a>
+        <a class="nav-link" href="#historico">Histórico</a>
+      </nav>
+      <div class="account-area">
+        <span class="account-badge"><span class="pulse-dot" aria-hidden="true"></span> Acesso particular</span>
+        <form method="post" action="/logout">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <button class="logout-button" type="submit" aria-label="Encerrar sessão">Sair <span aria-hidden="true">↗</span></button>
+        </form>
       </div>
-      <div class="event-badges">
-        {% if event.previous_status is not none %}
+    </div>
+  </header>
+
+  <main id="principal" class="container">
+    <section class="hero glass-panel" aria-labelledby="hero-title">
+      <div class="hero-orbit" aria-hidden="true">
+        <span class="orbit-ring orbit-one"></span><span class="orbit-ring orbit-two"></span>
+        <span class="orbit-core">◉</span>
+      </div>
+      <div class="hero-content">
+        <p class="eyebrow"><span class="sparkle" aria-hidden="true">✦</span> SEU CENTRO DE INTELIGÊNCIA PÚBLICA <span class="eyebrow-line"></span></p>
+        <h1 id="hero-title" aria-label="Oportunidades em foco.">Oportunidades <span class="gradient-text">em foco.</span></h1>
+        <p class="hero-description">Encontre licitações de produtos, acompanhe itens desertos e monitore alterações com dados oficiais, sem adivinhações.</p>
+        <div class="hero-actions">
+          <a class="primary-button" href="#licitacoes">Explorar oportunidades <span aria-hidden="true">↗</span></a>
+          <a class="ghost-button" href="#sincronizacao">Atualizar PNCP <span aria-hidden="true">↓</span></a>
+        </div>
+      </div>
+      <div class="hero-bottom">
+        <span class="tag"><span class="tag-icon" aria-hidden="true">◆</span> DADOS DO PNCP</span>
+        <span class="tag tag-muted">Números calculados a partir de itens coletados</span>
+      </div>
+    </section>
+
+    <div class="section-heading">
+      <div><p class="eyebrow compact">VISÃO GERAL</p><h2>Panorama do radar</h2></div>
+      <div class="refresh-tools">
+        <span id="refresh-state" role="status" aria-live="polite" class="refresh-state">Dados armazenados localmente</span>
+        <button type="button" class="refresh-button" id="refresh-view" aria-label="Recarregar os dados do painel">
+          <span class="refresh-icon" aria-hidden="true">↻</span> Atualizar tela
+        </button>
+      </div>
+    </div>
+
+    <section class="stats" aria-label="Indicadores de itens coletados">
+      <article class="stat glass-panel"><span class="stat-decoration" aria-hidden="true">◈</span>
+        <div class="stat-icon" aria-hidden="true">▤</div>
+        <span class="stat-label">Itens armazenados</span>
+        <strong data-count="all">{{ counts.values() | sum }}</strong>
+        <span class="stat-foot"><span class="mini-dot" aria-hidden="true"></span> Total coletado</span>
+      </article>
+      <article class="stat glass-panel stat-lime"><span class="stat-decoration" aria-hidden="true">◎</span>
+        <div class="stat-icon" aria-hidden="true">◌</div>
+        <span class="stat-label">Itens desertos</span>
+        <strong data-count="4">{{ counts.get(4,0) }}</strong>
+        <span class="stat-foot">Sem propostas válidas registradas como deserto</span>
+      </article>
+      <article class="stat glass-panel stat-pink"><span class="stat-decoration" aria-hidden="true">✳</span>
+        <div class="stat-icon" aria-hidden="true">◇</div>
+        <span class="stat-label">Itens fracassados</span>
+        <strong data-count="5">{{ counts.get(5,0) }}</strong>
+        <span class="stat-foot">Situação declarada pelo PNCP</span>
+      </article>
+      <article class="stat glass-panel"><span class="stat-decoration" aria-hidden="true">⌁</span>
+        <div class="stat-icon" aria-hidden="true">↗</div>
+        <span class="stat-label">Em andamento</span>
+        <strong data-count="1">{{ counts.get(1,0) }}</strong>
+        <span class="stat-foot">Confirmar prazos no edital</span>
+      </article>
+    </section>
+
+    <div class="dashboard-grid">
+      <section class="panel glass-panel" id="sincronizacao" aria-labelledby="sync-title">
+        <div class="panel-title">
+          <div>
+            <p class="eyebrow compact">COLETA DE DADOS</p><h2 id="sync-title">Sincronização PNCP</h2>
+            <p class="muted">Consulte um período de até 7 dias. Cada ação processa no máximo 20 publicações.</p>
+          </div>
+          <span class="panel-icon" aria-hidden="true">↻</span>
+        </div>
+        <form class="sync-form" method="post" action="/sync" id="sync-form">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <div><label for="start">Data inicial</label><input id="start" type="date" name="start" value="{{ start }}" required></div>
+          <div><label for="end">Data final</label><input id="end" type="date" name="end" value="{{ end }}" required></div>
+          <div><label for="suf">UF (opcional)</label><input id="suf" name="uf" maxlength="2" placeholder="SP" autocomplete="off"></div>
+          <div><label for="modality">Modalidade</label><select id="modality" name="modality">
+            <option value="6">Pregão eletrônico</option><option value="8">Dispensa</option>
+          </select></div>
+          <button class="primary-button" type="submit">Buscar no PNCP <span aria-hidden="true">↗</span></button>
+        </form>
+        <div class="sync-result {% if last_sync and last_sync.errors %}warn{% endif %}" id="sync-result" aria-live="polite">
+          {% if last_sync %}
+            <span class="result-icon" aria-hidden="true">●</span>
+            <span>Última coleta: {{ last_sync.started_at[:19] }} UTC · {{ last_sync.fetched }} publicações analisadas · {{ last_sync.material_items }} itens · {{ last_sync.errors }} erros.
+            {% if last_sync.errors %}{{ last_sync.details }}{% endif %}</span>
+          {% else %}
+            <span class="result-icon" aria-hidden="true">◉</span>
+            <span>O radar começa vazio. Faça a primeira consulta para carregar dados oficiais.</span>
+          {% endif %}
+        </div>
+      </section>
+
+      <aside class="panel glass-panel monitoring-panel" aria-labelledby="monitoring-title">
+        <div class="panel-title">
+          <div><p class="eyebrow compact">ESTADO DO SISTEMA</p><h2 id="monitoring-title">Monitoramento</h2></div>
+          <span class="panel-icon" aria-hidden="true">⌁</span>
+        </div>
+        <div class="monitor-visual" aria-hidden="true"><span class="monitor-radar"><span class="radar-center">◉</span></span></div>
+        <div class="monitor-row"><span>Varredura automática</span>
+          {% if auto_scan %}<span class="status-chip chip-lime">Configurada</span>{% else %}<span class="status-chip chip-neutral">Desativada</span>{% endif %}
+        </div>
+        <div class="monitor-row"><span>Frequência</span><strong>{% if auto_scan %}{{ scan_interval }} minutos{% else %}Manual{% endif %}</strong></div>
+        <div class="monitor-row"><span>Região</span><strong>{% if auto_scan %}{{ scan_uf }}{% else %}Conforme consulta{% endif %}</strong></div>
+        <p class="monitor-note">A varredura depende do servidor em execução. Atualizar a tela não consulta o PNCP.</p>
+      </aside>
+    </div>
+
+    <section class="panel glass-panel opportunities-panel" id="licitacoes" aria-labelledby="items-title">
+      <div class="panel-title">
+        <div><p class="eyebrow compact">EXPLORADOR</p>
+          <h2 id="items-title">Itens identificados <span class="count" id="filtered-count">{{ total }}</span></h2>
+          <p class="muted">Filtre a base coletada. O número de inscritos antes da disputa não está disponível neste sistema.</p>
+        </div>
+        <a class="external-source" href="https://pncp.gov.br/app/editais" target="_blank" rel="noopener noreferrer">Portal oficial <span aria-hidden="true">↗</span></a>
+      </div>
+      <form method="get" action="/" class="filter-form" aria-label="Filtrar itens">
+        <div class="search-wrap"><span aria-hidden="true">⌕</span><input name="q" value="{{ q }}" placeholder="Produto, palavra-chave ou município" aria-label="Pesquisar por palavra-chave"></div>
+        <input name="uf" value="{{ uf }}" placeholder="UF" maxlength="2" aria-label="UF">
+        <select name="status" aria-label="Situação do item">
+          <option value="0">Todas as situações</option>
+          {% for code,name in statuses.items() %}
+          <option value="{{ code }}" {% if code == status %}selected{% endif %}>{{ name }}</option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="filter-button">Aplicar filtros <span aria-hidden="true">→</span></button>
+      </form>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Descrição do item</th><th>Município / Órgão</th><th>Valor publicado</th><th>Situação</th><th>Fonte</th></tr></thead>
+          <tbody id="items-body">
+          {% for item in records %}
+          <tr>
+            <td><strong>{{ item.descricao }}</strong><small>Item {{ item.numero }} · {{ item.data_publicacao or "data não publicada" }}</small></td>
+            <td><strong>{{ item.municipio or "Município não informado" }} / {{ item.uf }}</strong><small>{{ item.orgao }}</small></td>
+            <td>{% if item.valor_total is not none %}R$ {{ "%.2f" | format(item.valor_total) }}{% else %}<span class="muted">Não informado / sigiloso</span>{% endif %}</td>
+            <td><span class="status s{{ item.status }}">{{ statuses.get(item.status, "Não identificado") }}</span></td>
+            <td><a class="table-link" href="{{ item.link }}" target="_blank" rel="noopener noreferrer">Ver edital ↗</a></td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="empty"><span class="empty-icon" aria-hidden="true">◎</span>
+            <strong>Nenhum item encontrado</strong><span>Sincronize o PNCP ou ajuste os filtros para explorar oportunidades.</span></td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <span>Página <strong>{{ page }}</strong> · <span id="pagination-total">{{ total }}</span> itens encontrados</span>
+        <div>{% if page > 1 %}<a href="{{ request.url.include_query_params(page=page-1) }}">← Anterior</a>{% endif %}
+          {% if page * 25 < total %}<a href="{{ request.url.include_query_params(page=page+1) }}">Próxima →</a>{% endif %}</div>
+      </div>
+    </section>
+
+    <section class="panel glass-panel" id="historico" aria-labelledby="history-title">
+      <div class="panel-title">
+        <div><p class="eyebrow compact">RASTREABILIDADE</p><h2 id="history-title">Mudanças observadas <span class="count" id="event-count">{{ events|length }}</span></h2>
+          <p class="muted">Alterações registradas entre coletas; um item deserto não significa edital reaberto.</p></div>
+        <span class="panel-icon" aria-hidden="true">◎</span>
+      </div>
+      <div id="events-body">
+      {% for event in events %}
+        <div class="event-row"><div class="event-main">
+          <span class="event-marker" aria-hidden="true"></span><div><strong>{{ event.descricao }}</strong>
+          <small>{{ event.municipio }} / {{ event.uf }} · Item {{ event.numero }} · {{ event.changed_at[:19] }} UTC</small></div>
+        </div><div class="event-badges">
+          {% if event.previous_status is not none %}
           <span class="status s{{ event.previous_status }}">{{ statuses.get(event.previous_status, "Desconhecido") }}</span>
-          <span class="muted">→</span>
-        {% else %}<span class="muted">Novo registro →</span>{% endif %}
-        <span class="status s{{ event.current_status }}">{{ statuses.get(event.current_status, "Desconhecido") }}</span>
-        <a href="{{ event.link }}" target="_blank" rel="noopener noreferrer">PNCP ↗</a>
-      </div>
-    </div>
-    {% else %}
-    <p class="muted">Nenhuma mudança registrada ainda. As primeiras importações de itens desertos ou fracassados aparecerão aqui.</p>
-    {% endfor %}
-  </section>
-  <section class="panel" aria-label="Busca de itens">
-    <div class="panel-title"><div><h2>Itens identificados <span class="count">{{ total }}</span></h2>
-      <p class="muted">Participantes antes da disputa: <strong>não disponível</strong> como dado público padronizado.</p></div></div>
-    <form method="get" action="/" class="filter-form">
-      <input name="q" value="{{ q }}" placeholder="Pesquisar produto, objeto ou município" aria-label="Pesquisar por palavra-chave">
-      <input name="uf" value="{{ uf }}" placeholder="UF" maxlength="2" aria-label="UF">
-      <select name="status" aria-label="Situação do item">
-        <option value="0">Todas as situações</option>
-        {% for code,name in statuses.items() %}
-        <option value="{{ code }}" {% if code == status %}selected{% endif %}>{{ name }}</option>
-        {% endfor %}
-      </select>
-      <button type="submit" class="button-secondary">Filtrar</button>
-    </form>
-    <div class="table-wrap">
-      <table><thead><tr><th>Produto / Descrição</th><th>Local / Órgão</th><th>Valor estimado</th><th>Status</th><th>Fonte</th></tr></thead>
-      <tbody>
-      {% for item in records %}
-      <tr>
-        <td><strong>{{ item.descricao }}</strong><small>Item {{ item.numero }} · {{ item.data_publicacao or "data não publicada" }}</small></td>
-        <td>{{ item.municipio or "Município não informado" }} / {{ item.uf }}<small>{{ item.orgao }}</small></td>
-        <td>{% if item.valor_total is not none %}R$ {{ "%.2f" | format(item.valor_total) }}{% else %}Não informado / sigiloso{% endif %}</td>
-        <td><span class="status s{{ item.status }}">{{ statuses.get(item.status, "Não identificado") }}</span></td>
-        <td><a href="{{ item.link }}" target="_blank" rel="noopener noreferrer">Ver edital ↗</a></td>
-      </tr>
+          <span class="muted" aria-label="mudou para">→</span>
+          {% else %}<span class="muted">Novo registro →</span>{% endif %}
+          <span class="status s{{ event.current_status }}">{{ statuses.get(event.current_status, "Desconhecido") }}</span>
+          <a class="table-link" href="{{ event.link }}" target="_blank" rel="noopener noreferrer">PNCP ↗</a>
+        </div></div>
       {% else %}
-      <tr><td colspan="5" class="empty">Nenhum item encontrado. Sincronize o PNCP ou ajuste os filtros.</td></tr>
+        <div class="history-empty"><span class="empty-icon" aria-hidden="true">◌</span>
+          <p>Nenhuma mudança registrada ainda. Após novas coletas, o histórico aparecerá aqui.</p></div>
       {% endfor %}
-      </tbody></table>
-    </div>
-    <div class="pagination">
-      <span>Página {{ page }} · {{ total }} itens nos filtros</span>
-      <div>
-        {% if page > 1 %}<a href="{{ request.url.include_query_params(page=page-1) }}">← Anterior</a>{% endif %}
-        {% if page * 25 < total %}<a href="{{ request.url.include_query_params(page=page+1) }}">Próxima →</a>{% endif %}
       </div>
-    </div>
-  </section>
-  <footer>LicitaRadar · Fonte oficial PNCP · A situação dos itens pode mudar. Reconfirme o edital antes de decidir participar.</footer>
-</main>
-</body></html>
+    </section>
+
+    <footer><span><strong>◉ LicitaRadar</strong> · Seu painel privado</span>
+      <span>Fonte: PNCP · Atualizações não são instantâneas · Confirme sempre o edital oficial</span></footer>
+  </main>
+</body>
+</html>
