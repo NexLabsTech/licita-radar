@@ -52,8 +52,9 @@ SYSTEM_PROMPT = (
     "Não diga que licitação deserta/fracassada está aberta. "
     "Se falta cotação válida, não afirme lucratividade. "
     "Se evidências são insuficientes, reduza confianca e liste lacunas. "
-    "Em 'evidencias_documentais', cite somente trechos explícitos do documento "
-    "fornecido e identifique sua origem; se não houver documento use lista vazia. "
+    "Em 'evidencias_documentais', copie somente trechos LITERAIS, contíguos e "
+    "presentes no texto do documento; não adicione interpretações nem prefixos. "
+    "A origem já é exibida pelo sistema. Sem documento use lista vazia. "
     "Responda em português brasileiro com linguagem curta, clara e operacional."
 )
 
@@ -275,7 +276,8 @@ def context_digest(context: dict, cfg: AIConfig) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
-def validate_model_output(payload: Any, has_document: bool) -> dict:
+def validate_model_output(payload: Any, has_document: bool,
+                          document_text: str = "") -> dict:
     if not isinstance(payload, dict):
         raise AIError("Resposta da IA fora do formato contratado.", 502)
     expected = (
@@ -302,6 +304,12 @@ def validate_model_output(payload: Any, has_document: bool) -> dict:
         cleaned[field] = [value.strip() for value in values]
     if not has_document and cleaned["evidencias_documentais"]:
         raise AIError("IA alegou evidência de documento não fornecido.", 502)
+    if has_document:
+        # Fontes documentais são aceitas somente como trechos literais verificáveis.
+        normalized_document = " ".join(document_text.casefold().split())
+        for evidence in cleaned["evidencias_documentais"]:
+            if " ".join(evidence.casefold().split()) not in normalized_document:
+                raise AIError("A IA citou texto não encontrado no documento.", 502)
     all_text = summary + " ".join(
         value for field in expected[3:] for value in cleaned[field]
     )
@@ -363,7 +371,8 @@ async def run_model(
         if not isinstance(content, str) or not 1 <= len(content) <= 14000:
             raise ValueError("content")
         return validate_model_output(
-            json.loads(content), bool(context["documento"]["trecho"])
+            json.loads(content), bool(context["documento"]["trecho"]),
+            context["documento"]["trecho"],
         )
     except AIError:
         raise
