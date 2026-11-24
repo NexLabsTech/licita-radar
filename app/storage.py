@@ -1,5 +1,6 @@
 """Banco SQLite local e importação idempotente de itens de material."""
 import sqlite3
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -8,13 +9,22 @@ from .intelligence import classify
 STATUSES = {1: "Em andamento", 2: "Homologado", 3: "Cancelado", 4: "Deserto", 5: "Fracassado"}
 
 
+@contextmanager
 def connection(path: str):
+    """Transação com commit/rollback e fechamento garantido do SQLite."""
     db = sqlite3.connect(path, timeout=15)
-    db.row_factory = sqlite3.Row
-    db.create_function("lr_category", 1, classify, deterministic=True)
-    db.execute("PRAGMA foreign_keys=ON")
-    db.execute("PRAGMA busy_timeout=15000")
-    return db
+    try:
+        db.row_factory = sqlite3.Row
+        db.create_function("lr_category", 1, classify, deterministic=True)
+        db.execute("PRAGMA foreign_keys=ON")
+        db.execute("PRAGMA busy_timeout=15000")
+        yield db
+        db.commit()
+    except BaseException:
+        db.rollback()
+        raise
+    finally:
+        db.close()
 
 
 def init_db(path: str):
