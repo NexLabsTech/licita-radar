@@ -1,5 +1,6 @@
 """Autenticação local sem cadastro, usando primitivas da biblioteca padrão."""
 import base64
+import binascii
 import getpass
 import hashlib
 import hmac
@@ -38,7 +39,7 @@ def verify_password(password: str, stored: str) -> bool:
             return False
         actual = hashlib.pbkdf2_hmac("sha256", password.encode(), _decode(salt), n)
         return hmac.compare_digest(expected, actual)
-    except (ValueError, TypeError, OverflowError, UnicodeError):
+    except (ValueError, TypeError, OverflowError, UnicodeError, binascii.Error):
         return False
 
 
@@ -54,7 +55,7 @@ def unsign(token: str | None, secret: str) -> str | None:
     try:
         payload, signature = token.split(".")
         expected = _b64(hmac.new(secret.encode(), payload.encode(), "sha256").digest())
-        if not hmac.compare_digest(signature, expected):
+        if not hmac.compare_digest(signature.encode('ascii'), expected.encode('ascii')):
             return None
         return _decode(payload).decode()
     except (ValueError, UnicodeError):
