@@ -190,3 +190,53 @@ def test_missing_credentials_fail_closed(tmp_path):
         assert client.get("/login").status_code == 503
         assert client.get("/api/items").status_code == 503
         assert client.get("/healthz").json()["status"] == "setup_required"
+
+
+def test_unknown_status_never_becomes_in_progress(db_path):
+    tender = {
+        "id": "UNKNOWN", "cnpj": "12345678000190", "ano": 2026,
+        "sequencial": 1, "orgao": "Prefeitura", "municipio": "Salto",
+        "uf": "SP", "objeto": "Itens variados",
+        "data_publicacao": "2026-11-23", "abertura": None, "encerramento": None,
+        "link": "https://pncp.gov.br/app/editais/12345678000190/2026/1",
+    }
+    upsert_tender(db_path, tender, [
+        {"numeroItem": 1, "materialOuServico": "M", "descricao": "Desconhecido"},
+        {"numeroItem": 2, "materialOuServico": "M", "descricao": "Desconhecido 99",
+         "situacaoCompraItemId": 99},
+    ])
+    rows, total, counts, _ = list_items(db_path)
+    assert total == 2
+    assert {item["status"] for item in rows} == {0}
+    assert counts.get(1, 0) == 0
+
+
+def test_rate_limit_and_csrf_recovery(client):
+    for i in range(6):
+        page = client.get("/login")
+        token = re.search(r'name="csrf" value="([^"]+)"', page.text).group(1)
+        assert client.post("/login", data={"csrf": token, "username": "admin",
+                                          "password": "senha errada"}).status_code == 401
+    page = client.get("/login")
+    token = re.search(r'name="csrf" value="([^"]+)"', page.text).group(1)
+    assert client.post("/login", data={"csrf": token, "username": "admin",
+                                      "password": STRONG_PASSWORD}).status_code == 429
+
+
+def test_session_cookie_malformed_is_rejected(client):
+    client.cookies.set("lr_session", "%%%%.âââ")
+    assert client.get("/api/items").status_code == 401
+
+
+def test_html_security_headers(client):
+    login(client)
+    response = client.get("/")
+    assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
+    assert response.headers["x-frame-options"] == "DENY"
+
+
+def test_production_requires_secure_cookies(monkeypatch):
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv("COOKIE_SECURE", "0")
+    with pytest.raises(RuntimeError):
+        Settings.from_env()
