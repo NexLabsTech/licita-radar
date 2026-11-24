@@ -1,6 +1,6 @@
 # LR-DATA-WO-002 | Resultados oficiais de itens e preços homologados
 
-**Status:** EXECUTING, sem deploy ou consumo pago. **Source Check / Context Lock:** main 82d7b397f0a89b1f525bd142146b224f32750052 (compare identical), Source Pack v0.7 blob 20dd0a80c17e7e105fe8569ac90d56ef7e79c348; app/main.py blob 51d8f90d95827dd63a0c1dbbd8c014af15566529. **Risco:** STANDARD, leitura PNCP sem assinatura financeira.
+**Status:** APPROVED para código pré-produção, sem deploy ou consumo pago; merge pendente. **Source Check / Context Lock:** main 82d7b397f0a89b1f525bd142146b224f32750052 (compare identical), Source Pack v0.7 blob 20dd0a80c17e7e105fe8569ac90d56ef7e79c348; app/main.py blob 51d8f90d95827dd63a0c1dbbd8c014af15566529. **Risco:** STANDARD, leitura PNCP sem assinatura financeira.
 
 **OBJECTIVE:** mostrar resultados oficiais publicados de um item PNCP sem inferir número de licitantes, cotação atual de fornecedor ou margem vencedora.
 
@@ -14,4 +14,4 @@
 
 **ACCEPTANCE CRITERIA:** URL fixed-host derivada de item armazenado; não persistir payload incompleto; consultas idempotentes e com cache/cooldown; rótulo 'resultados registrados' nunca 'concorrentes'; privacidade PF/PE; UI dark e acessível; testes auth/CSRF/status/erros/decimais/rollback/escapamento; sem egress/custos no CI.
 
-**TESTS:** pytest MockTransport, Ruff/compileall, JS syntax, Chromium mobile/desktop e Docker regression. **DELIVERABLES:** código, PR, Evidence Bundle, auditoria pt-BR, Checkpoint Delta mínimo. **REVIEW FORMAT:** APPROVED/CORRECTION REQUIRED/BLOCKED. **STOP CONDITION:** sem merge/next com falha HIGH/CRITICAL ou checks pendentes; sem deploy. **Checkpoint Delta:** PROPOSED.
+**TESTS:** pytest MockTransport, Ruff/compileall, JS syntax, Chromium mobile/desktop e Docker regression. **DELIVERABLES:** código, PR, Evidence Bundle, auditoria pt-BR, Checkpoint Delta mínimo. **REVIEW FORMAT:** APPROVED/CORRECTION REQUIRED/BLOCKED. **STOP CONDITION:** sem merge/next com falha HIGH/CRITICAL ou checks pendentes; sem deploy. **Evidence Bundle / Checkpoint Delta APPROVED:** base 82d7b397f0a89b1f525bd142146b224f32750052, head auditado 52d1fed320437c7fcea1da71e8245175d3a87dcd; PR #8, CI #45366354177 4/4 jobs PASS, 140/140 testes por matriz Python 3.12 e 3.13, Ruff/compileall/JS, PNCP publicações smoke, Chromium desktop/mobile, Docker/backup PASS. Screenshots artifact #14907091569 sha256:627b9f94be9de542922209211cb44b8ec4b58fe88ad908fe5467f6da736a7a85. Correção obrigatória de cooldown na mesma PR/WO auditada, sem limitação de gastos ou deploy mudada. Auditoria pt-BR no comentário da PR #8: APPROVED pré-produção; versão completa/deploy ainda BLOCKED.
