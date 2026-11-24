@@ -310,3 +310,47 @@ def test_scan_cycle_survives_failure_of_one_modality(monkeypatch, db_path):
     result = run(scheduler.scan_cycle(db_path, "SP", today=date(2026, 11, 23)))
     assert result[0]["errors"] == 1
     assert result[1]["errors"] == 0
+
+
+def test_neon_glass_login_and_dashboard_contract(client):
+    """O redesign mantém autenticação, CSRF, acessibilidade e sem dados falsos."""
+    login_page = client.get("/login")
+    assert login_page.status_code == 200
+    assert 'class="login-card glass-panel"' in login_page.text
+    assert 'name="csrf"' in login_page.text
+    assert "Sem registro público" in login_page.text
+    login(client)
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "Oportunidades em foco." in response.text
+    assert 'href="#licitacoes"' in response.text
+    assert 'id="items-body"' in response.text
+    assert 'id="events-body"' in response.text
+    assert 'id="refresh-view"' in response.text
+    assert 'src="/static/site.js"' in response.text
+    assert 'id="sync-form"' in response.text
+    assert 'name="csrf"' in response.text
+    assert 'rel="noopener noreferrer"' in response.text
+    assert "Nenhum item encontrado" in response.text
+    assert "Reconfirme" not in response.text or "PNCP" in response.text
+    assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
+
+
+def test_static_ui_security_and_reduced_motion(client):
+    """Estáticos permanecem internos e o JS não injeta conteúdo de API como HTML."""
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1] / "app" / "static"
+    css = (root / "site.css").read_text(encoding="utf-8")
+    script = (root / "site.js").read_text(encoding="utf-8")
+    assert "--lime:" in css and "--pink:" in css
+    assert "backdrop-filter:blur" in css
+    assert "prefers-reduced-motion:reduce" in css
+    assert "innerHTML" not in script
+    assert "textContent" in script and "replaceChildren" in script
+    assert 'url.hostname !== "pncp.gov.br"' in script
+    assert 'fetch("/api/items?"' in script
+    assert 'fetch("/api/changes"' in script
+    assert "/sync" not in script
+    assert client.get("/static/site.js").status_code == 200
+    assert client.get("/static/site.css").status_code == 200
