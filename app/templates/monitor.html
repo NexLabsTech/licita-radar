@@ -62,6 +62,7 @@
           {{ 'Remover dos favoritos' if focused_watched else '★ Acompanhar este item' }}
         </button>
         <a class="ghost-button" href="/quote?tender_id={{ focused.tender_id|urlencode }}&numero={{ focused.numero }}">Abrir cálculo de margem ↗</a>
+        <a class="ghost-button" href="/workspace?tender_id={{ focused.tender_id|urlencode }}&numero={{ focused.numero }}">Planejar oportunidade ↗</a>
       </form>
     </section>
     {% endif %}
@@ -137,6 +138,7 @@
               <a class="table-link" href="{{ item.link }}" target="_blank" rel="noopener noreferrer">Fonte PNCP ↗</a>
               <a class="table-link" href="/quote?tender_id={{ item.tender_id|urlencode }}&numero={{ item.numero }}">Margem ↗</a>
               <a class="table-link" href="/results?tender_id={{ item.tender_id|urlencode }}&numero={{ item.numero }}">Resultados ↗</a>
+              <a class="table-link" href="/workspace?tender_id={{ item.tender_id|urlencode }}&numero={{ item.numero }}">Planejar ↗</a>
               <form action="/monitor/favorite" method="post">
                 <input type="hidden" name="csrf" value="{{ csrf }}">
                 <input type="hidden" name="tender_id" value="{{ item.tender_id }}">
