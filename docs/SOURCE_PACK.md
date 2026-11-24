@@ -39,9 +39,9 @@ Código, testes relevantes e CI verdes; sem secrets; login protege todas as tela
 
 ## Decisions Ledger / ADRs
 ADR-001 APPROVED (2026-11-23): GitHub público para CI; uso individual; login sem registro; foco código; docs concisas. 
-ADR-002 PROPOSED: FastAPI + SQLite + PNCP REST para MVP; sujeito a testes e leitura de contratos.
-ADR-003 PROPOSED: credenciais ambientais e cookies com sessões criptograficamente assinadas; sem auth externa.
-ADR-004 PROPOSED: não automatizar merge ou deploy antes de CI e auditoria.
+ADR-002 APPROVED: FastAPI + SQLite + PNCP REST para MVP; sujeito a testes e leitura de contratos.
+ADR-003 APPROVED: credenciais ambientais e cookies com sessões criptograficamente assinadas; sem auth externa.
+ADR-004 APPROVED: não automatizar merge ou deploy antes de CI e auditoria.
 
 ## Checkpoint
-2026-11-23: repositório inicializado, sem implementação no main. Próximo incremento LR-MVP-WO-001 após Source Check e Context Lock em branch dedicada. Nenhum MVP ou deploy ainda validado.
+2026-11-23: LR-MVP-WO-001 aprovado como **incremento de código pré-produção** após revisão da PR #1; baseline 85bacf56e4782fb6e1c10f8fd284e2ca0222408c; GitHub Actions run 45304898676: Python 3.12/3.13, 14/14 testes por matriz, lint/compileall PASS; smoke PNCP real PASS (10 publicações, 8 itens de material na amostra). Deploy, operação agendada e versão completa NÃO validados. Próximo: LR-MVP-WO-002 somente após merge.
