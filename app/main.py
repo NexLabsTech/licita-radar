@@ -66,6 +66,7 @@ from .security import (
     verify_login_csrf,
     verify_password,
 )
+from .storage import STATUSES, init_db, list_items, recent_events
 from .workspace import (
     PRIORITIES,
     STAGES,
@@ -81,7 +82,6 @@ from .workspace import (
     save_case,
     toggle_task,
 )
-from .storage import STATUSES, init_db, list_items, recent_events
 
 ROOT = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(ROOT / "templates"))
