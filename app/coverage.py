@@ -97,6 +97,14 @@ def _get_job(path: str, job_id: int) -> dict:
     return dict(row)
 
 
+def delete_job(path: str, job_id: int) -> None:
+    """Apaga só o cursor da pesquisa; jamais itens, cotações ou alertas."""
+    if job_id <= 0:
+        raise CoverageError("Pesquisa inválida.")
+    with connection(path) as db:
+        db.execute("DELETE FROM coverage_jobs WHERE id=?", (job_id,))
+
+
 def coverage_jobs(path: str) -> list[dict]:
     with connection(path) as db:
         rows = db.execute(
@@ -136,7 +144,9 @@ def _page_rows(payload: object) -> tuple[list, bool]:
     if any(not isinstance(row, dict) for row in rows):
         raise PNCPError("Contratação com formato inesperado.")
     # Metadado explícito ou página curta provam fim da listagem para o filtro.
-    finished = (remaining == 0) or len(rows) < PAGE_SIZE
+    if remaining and not rows:
+        raise PNCPError("PNCP declarou mais páginas, mas enviou página vazia.")
+    finished = (remaining == 0) if remaining is not None else len(rows) < PAGE_SIZE
     return rows, finished
 
 
