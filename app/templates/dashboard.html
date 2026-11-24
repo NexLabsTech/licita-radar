@@ -25,6 +25,7 @@
         <a class="nav-link" href="#licitacoes">Licitações</a>
         <a class="nav-link" href="#historico">Histórico</a>
         <a class="nav-link" href="/monitor">Meu monitor{% if unread_alerts %} <span class="monitor-nav-count">{{ unread_alerts }}</span>{% endif %}</a>
+        <a class="nav-link" href="/workspace">Meu trabalho</a>
         <a class="nav-link" href="/coverage">Cobertura</a>
       </nav>
       <div class="account-area">
@@ -52,6 +53,7 @@
           <a class="ghost-button" href="#sincronizacao">Atualizar PNCP <span aria-hidden="true">↓</span></a>
           <a class="ghost-button" href="/coverage">Cobertura municipal ↗</a>
           <a class="ghost-button" href="/monitor">Meu monitor ★{% if unread_alerts %} · {{ unread_alerts }} novos{% endif %}</a>
+          <a class="ghost-button" href="/workspace">Meu trabalho ↗</a>
         </div>
       </div>
       <div class="hero-bottom">
@@ -195,6 +197,7 @@
               <a class="table-link ai-link" href="/ai?tender_id={{ item.tender_id|urlencode }}&numero={{ item.numero }}">Analisar com IA ✦</a>
               <a class="table-link result-link" href="/results?tender_id={{ item.tender_id|urlencode }}&numero={{ item.numero }}">Resultados PNCP ↗</a>
               <a class="table-link monitor-item-link" href="/monitor?tender_id={{ item.tender_id|urlencode }}&numero={{ item.numero }}">{{ "★ Acompanhando" if item.watched else "☆ Acompanhar" }}</a>
+              <a class="table-link workspace-link" href="/workspace?tender_id={{ item.tender_id|urlencode }}&numero={{ item.numero }}">Planejar oportunidade ↗</a>
             </td>
           </tr>
           {% else %}

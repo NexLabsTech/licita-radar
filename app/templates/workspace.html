@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#080910">
+  <title>Meu trabalho · LicitaRadar</title>
+  <link rel="stylesheet" href="/static/site.css">
+</head>
+<body class="radar-body">
+  <a class="skip-link" href="#principal">Pular para o conteúdo</a>
+  <div class="ambient ambient-lime" aria-hidden="true"></div>
+  <div class="ambient ambient-pink" aria-hidden="true"></div>
+  <header class="topbar"><div class="topbar-inner">
+    <a class="brand" href="/">
+      <span class="brand-icon" aria-hidden="true">◉</span>
+      <span>licita<span class="brand-highlight">radar</span><small>INTELLIGENCE</small></span>
+    </a>
+    <nav class="main-nav" aria-label="Seções">
+      <a class="nav-link" href="/">Radar</a>
+      <a class="nav-link" href="/monitor">Meu monitor</a>
+      <a class="nav-link active" href="/workspace" aria-current="page">Meu trabalho</a>
+      <a class="nav-link" href="/coverage">Cobertura</a>
+    </nav>
+    <div class="account-area">
+      <form action="/logout" method="post">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <button type="submit" class="logout-button">Sair ↗</button>
+      </form>
+    </div>
+  </div></header>
+
+  <main id="principal" class="container workspace-container">
+    <section class="glass-panel workspace-hero">
+      <p class="eyebrow compact"><span class="sparkle" aria-hidden="true">✦</span> OPERAÇÃO PARTICULAR · DECISÃO HUMANA</p>
+      <h1>Da descoberta à <span class="gradient-text">decisão.</span></h1>
+      <p class="muted">Guarde anotações, controle prazos, organize etapas e tarefas. Tudo fica no seu banco privado, sem transmitir notas à IA e sem enviar propostas.</p>
+      <div class="monitor-pills">
+        <span class="monitor-pill">◎ {{ cases|length }}/200 oportunidades</span>
+        <span class="monitor-pill">◈ Checklist privado</span>
+        <span class="monitor-pill">✦ Histórico manual</span>
+      </div>
+      <p class="workspace-disclaimer">As etapas “inscrito” e “ganho” são registros preenchidos por você. O sistema não comprova inscrição nem contratação e não atualiza esses estados automaticamente.</p>
+    </section>
+
+    {% if focused %}
+    <section class="glass-panel panel" aria-labelledby="selected-work-title">
+      <div class="panel-title">
+        <div>
+          <p class="eyebrow compact">OPORTUNIDADE SELECIONADA</p>
+          <h2 id="selected-work-title">{{ focused.descricao }}</h2>
+          <p class="muted">{{ focused.orgao }} · {{ focused.municipio }}/{{ focused.uf }} · Item {{ focused.numero }}</p>
+        </div><a class="table-link" href="{{ focused.link }}" target="_blank" rel="noopener noreferrer">Abrir edital PNCP ↗</a>
+      </div>
+      {% if focused.status != 1 %}
+        <p class="workspace-warning">Situação do item PNCP: {{ statuses.get(focused.status, "Não identificada") }}. Verifique a publicação original e o prazo. O status manual abaixo não comprova que existe disputa aberta.</p>
+      {% endif %}
+      <div class="workspace-panel-grid">
+        <div>
+          <h3 class="workspace-section-title">Plano da oportunidade</h3>
+          <form method="post" action="/workspace/save" class="workspace-form">
+            <input type="hidden" name="csrf" value="{{ csrf }}">
+            <input type="hidden" name="tender_id" value="{{ focused.tender_id }}">
+            <input type="hidden" name="numero" value="{{ focused.numero }}">
+            <div>
+              <label for="workspace-stage">Etapa manual</label>
+              <select id="workspace-stage" name="stage">
+                {% for code, title in stages.items() %}
+                <option value="{{ code }}" {% if code == (case.stage if case else 'avaliar') %}selected{% endif %}>{{ title }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="workspace-row">
+              <div><label for="workspace-priority">Prioridade</label>
+                <select id="workspace-priority" name="priority">
+                  {% for code, title in priorities.items() %}
+                  <option value="{{ code }}" {% if code == (case.priority if case else 'normal') %}selected{% endif %}>{{ title }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div><label for="workspace-deadline">Prazo de atenção (privado)</label>
+                <input id="workspace-deadline" name="deadline" type="date" min="2021-01-01" max="2100-12-31" value="{{ case.deadline if case and case.deadline else '' }}">
+              </div>
+            </div>
+            <div><label for="workspace-notes">Anotações pessoais (até 1.200 caracteres)</label>
+              <textarea id="workspace-notes" name="notes" maxlength="1200" rows="5" placeholder="Quem contatar, exigências confirmadas no edital, disponibilidade no fornecedor, risco ou pendências.">{{ case.notes if case else '' }}</textarea>
+            </div>
+            <button type="submit" class="primary-button full-width">Salvar plano e etapa ↗</button>
+          </form>
+          <div class="workspace-links">
+            <a class="table-link" href="/quote?tender_id={{ focused.tender_id|urlencode }}&numero={{ focused.numero }}">Calcular margem ↗</a>
+            <a class="table-link" href="/ai?tender_id={{ focused.tender_id|urlencode }}&numero={{ focused.numero }}">Consultar IA ↗</a>
+            <a class="table-link" href="/results?tender_id={{ focused.tender_id|urlencode }}&numero={{ focused.numero }}">Resultados PNCP ↗</a>
+            <a class="table-link" href="/monitor?tender_id={{ focused.tender_id|urlencode }}&numero={{ focused.numero }}">Favoritos ↗</a>
+          </div>
+        </div>
+        <div>
+          <h3 class="workspace-section-title">Checklist <span class="count">{{ tasks|length }}/20</span></h3>
+          {% if case %}
+          <form method="post" action="/workspace/task/add" class="workspace-task-add">
+            <input type="hidden" name="csrf" value="{{ csrf }}">
+            <input type="hidden" name="tender_id" value="{{ focused.tender_id }}">
+            <input type="hidden" name="numero" value="{{ focused.numero }}">
+            <label for="workspace-task">Nova tarefa de conferência</label>
+            <div><input id="workspace-task" name="label" maxlength="120" minlength="3" required placeholder="Ex.: Solicitar orçamento com frete">
+              <button class="ghost-button" type="submit">Adicionar</button>
+            </div>
+          </form>
+          <div class="workspace-tasks">
+            {% for task in tasks %}
+            <div class="workspace-task {{ 'workspace-task-done' if task.done else '' }}">
+              <form method="post" action="/workspace/task/toggle">
+                <input type="hidden" name="csrf" value="{{ csrf }}">
+                <input type="hidden" name="tender_id" value="{{ focused.tender_id }}">
+                <input type="hidden" name="numero" value="{{ focused.numero }}">
+                <input type="hidden" name="task_id" value="{{ task.id }}">
+                <button type="submit" class="workspace-task-toggle" aria-label="{{ 'Reabrir' if task.done else 'Concluir' }} tarefa {{ task.label }}">{{ '✓' if task.done else '○' }}</button>
+              </form>
+              <span>{{ task.label }}</span>
+              <form method="post" action="/workspace/task/delete">
+                <input type="hidden" name="csrf" value="{{ csrf }}">
+                <input type="hidden" name="tender_id" value="{{ focused.tender_id }}">
+                <input type="hidden" name="numero" value="{{ focused.numero }}">
+                <input type="hidden" name="task_id" value="{{ task.id }}">
+                <button type="submit" class="workspace-task-delete" aria-label="Excluir tarefa {{ task.label }}">×</button>
+              </form>
+            </div>
+            {% else %}
+            <div class="monitor-empty-state workspace-empty-tasks"><span aria-hidden="true">◎</span>
+              <p>Nenhuma tarefa ainda. Monte seu checklist de documentação, fornecedores e prazos.</p>
+            </div>
+            {% endfor %}
+          </div>
+          <h3 class="workspace-section-title">Histórico de etapas</h3>
+          <div class="workspace-events">
+            {% for event in events %}
+            <div><strong>{{ stages.get(event.old_stage, "Início") }} → {{ stages.get(event.new_stage, "Não identificado") }}</strong>
+              <small>{{ event.changed_at[:19] }} UTC · alteração manual</small></div>
+            {% else %}<p class="muted">Histórico disponível após salvar o plano.</p>{% endfor %}
+          </div>
+          {% else %}
+          <div class="monitor-empty-state workspace-empty-tasks">
+            <span aria-hidden="true">✧</span><strong>Salve o plano primeiro.</strong>
+            <p>Depois você poderá cadastrar e concluir tarefas individualmente.</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </section>
+    {% endif %}
+
+    <section class="glass-panel panel" aria-labelledby="workspace-list-title">
+      <div class="panel-title">
+        <div><p class="eyebrow compact">SEUS CASOS</p>
+          <h2 id="workspace-list-title">Oportunidades em acompanhamento <span class="count">{{ cases|length }}</span></h2>
+          <p class="muted">Prioridade e prazo definidos por você. Um alerta de prazo não é lembrete por e-mail ou push.</p>
+        </div><a class="ghost-button" href="/workspace/export.csv">Exportar CSV privado ↗</a>
+      </div>
+      <div class="workspace-cards">
+        {% for entry in cases %}
+        <article class="workspace-card">
+          <div class="workspace-card-head">
+            <span class="workspace-stage">{{ stages.get(entry.stage, "Etapa desconhecida") }}</span>
+            <span class="workspace-priority priority-{{ entry.priority }}">{{ priorities.get(entry.priority, "?") }}</span>
+          </div>
+          <h3>{{ entry.descricao or entry.objeto or "Descrição não disponível" }}</h3>
+          <p class="muted">{{ entry.orgao }} · {{ entry.municipio }}/{{ entry.uf }} · Item {{ entry.numero }}</p>
+          <div class="workspace-card-meta">
+            <div><small>Prazo registrado</small>
+              <strong class="{{ 'workspace-overdue' if entry.deadline and entry.deadline < today and entry.stage not in ('ganho','perdido','arquivado') else '' }}">
+                {% if entry.deadline %}{{ entry.deadline }}{% else %}Sem prazo{% endif %}
+              </strong>
+            </div>
+            <div><small>Checklist</small><strong>{{ entry.tasks_done }}/{{ entry.tasks_total }} tarefas</strong></div>
+            <div><small>Status oficial PNCP</small><strong>{{ statuses.get(entry.pncp_status, "Não identificado") }}</strong></div>
+          </div>
+          <div class="workspace-links">
+            <a class="table-link" href="/workspace?tender_id={{ entry.tender_id|urlencode }}&numero={{ entry.numero }}">Editar plano ↗</a>
+            <a class="table-link" href="{{ entry.link }}" target="_blank" rel="noopener noreferrer">PNCP ↗</a>
+            <a class="table-link" href="/quote?tender_id={{ entry.tender_id|urlencode }}&numero={{ entry.numero }}">Margem ↗</a>
+          </div>
+        </article>
+        {% else %}
+        <div class="monitor-empty-state"><span aria-hidden="true">✧</span>
+          <strong>Nenhuma oportunidade cadastrada.</strong>
+          <p>Abra um item no radar e escolha “Planejar oportunidade”.</p>
+          <a class="ghost-button" href="/#licitacoes">Explorar PNCP ↗</a>
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+    <footer><span><strong>◉ LicitaRadar</strong> · Meu trabalho particular</span>
+      <span>Etapas e prazos manuais · PNCP é fonte oficial · Nenhuma inscrição automática</span></footer>
+  </main>
+</body>
+</html>
