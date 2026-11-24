@@ -1,6 +1,6 @@
 """Banco SQLite local e importação idempotente de itens de material."""
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 STATUSES = {1: "Em andamento", 2: "Homologado", 3: "Cancelado", 4: "Deserto", 5: "Fracassado"}
@@ -59,7 +59,7 @@ def init_db(path: str):
 
 def upsert_tender(path: str, tender: dict, items: list[dict]) -> int:
     """Atualiza a compra e itens somente após obter a lista de itens completa."""
-    stamp = datetime.now(timezone.utc).isoformat()
+    stamp = datetime.now(UTC).isoformat()
     valid = [item for item in items if item.get("materialOuServico") == "M"]
     with connection(path) as db:
         db.execute("""
@@ -123,4 +123,4 @@ def record_sync(path: str, fetched: int, material_items: int, errors: int, detai
     with connection(path) as db:
         db.execute(
             "INSERT INTO sync_runs(started_at,fetched,material_items,errors,details) VALUES (?,?,?,?,?)",
-            (datetime.now(timezone.utc).isoformat(), fetched, material_items, errors, details[:500]))
+            (datetime.now(UTC).isoformat(), fetched, material_items, errors, details[:500]))
