@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard · LicitaRadar</title><link rel="stylesheet" href="/static/site.css"></head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="logo-dot">◉</span> LicitaRadar <span class="version">MVP · PNCP</span></div>
+  <form method="post" action="/logout"><input type="hidden" name="csrf" value="{{ csrf }}">
+    <button class="subtle" type="submit">Sair da conta ↗</button></form>
+</header>
+<main class="container">
+  <div class="hero">
+    <div><p class="eyebrow">RADAR DE COMPRAS PÚBLICAS</p><h1>Oportunidades em foco.</h1>
+      <p class="muted">Itens de materiais publicados no PNCP. Somente informações verificadas na fonte oficial.</p></div>
+    <div class="source-pill">● Fonte: <a href="https://pncp.gov.br/app/editais" target="_blank" rel="noopener noreferrer">PNCP ↗</a></div>
+  </div>
+  <section class="stats" aria-label="Estatísticas armazenadas">
+    <div class="stat"><small>Itens armazenados</small><strong>{{ counts.values() | sum }}</strong><span>Importações locais</span></div>
+    <div class="stat"><small>Desertos</small><strong class="gold">{{ counts.get(4,0) }}</strong><span>Sem interessados</span></div>
+    <div class="stat"><small>Fracassados</small><strong class="pink">{{ counts.get(5,0) }}</strong><span>Sem vencedor</span></div>
+    <div class="stat"><small>Em andamento</small><strong class="cyan">{{ counts.get(1,0) }}</strong><span>Situação declarada pelo PNCP</span></div>
+  </section>
+  <section class="panel sync-panel">
+    <div class="panel-title"><div><h2>Atualizar radar</h2><p class="muted">Consultar período de até 7 dias. A coleta é manual e limitada a 20 compras por execução.</p></div></div>
+    <form class="sync-form" method="post" action="/sync">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <div><label for="start">Publicação de</label><input id="start" type="date" name="start" value="{{ start }}" required></div>
+      <div><label for="end">Até</label><input id="end" type="date" name="end" value="{{ end }}" required></div>
+      <div><label for="suf">Estado (opcional)</label><input id="suf" name="uf" maxlength="2" placeholder="SP"></div>
+      <div><label for="modality">Modalidade</label><select id="modality" name="modality"><option value="6">Pregão eletrônico</option><option value="8">Dispensa</option></select></div>
+      <button type="submit">Sincronizar PNCP ↻</button>
+    </form>
+    {% if last_sync %}
+    <p class="sync-result {% if last_sync.errors %}warn{% endif %}">
+      Última consulta: {{ last_sync.started_at[:19] }} UTC.
+      Compras processadas: {{ last_sync.fetched }} · itens de material: {{ last_sync.material_items }} · erros: {{ last_sync.errors }}.
+      {% if last_sync.errors %}Alguns dados podem não ter sido importados. {{ last_sync.details }}{% endif %}
+    </p>
+    {% else %}
+    <p class="sync-result">Nenhuma coleta realizada. O painel começa vazio, sem números fictícios.</p>
+    {% endif %}
+  </section>
+  <section class="panel" aria-label="Busca de itens">
+    <div class="panel-title"><div><h2>Itens identificados <span class="count">{{ total }}</span></h2>
+      <p class="muted">Participantes antes da disputa: <strong>não disponível</strong> como dado público padronizado.</p></div></div>
+    <form method="get" action="/" class="filter-form">
+      <input name="q" value="{{ q }}" placeholder="Pesquisar produto, objeto ou município" aria-label="Pesquisar por palavra-chave">
+      <input name="uf" value="{{ uf }}" placeholder="UF" maxlength="2" aria-label="UF">
+      <select name="status" aria-label="Situação do item">
+        <option value="0">Todas as situações</option>
+        {% for code,name in statuses.items() %}
+        <option value="{{ code }}" {% if code == status %}selected{% endif %}>{{ name }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="button-secondary">Filtrar</button>
+    </form>
+    <div class="table-wrap">
+      <table><thead><tr><th>Produto / Descrição</th><th>Local / Órgão</th><th>Valor estimado</th><th>Status</th><th>Fonte</th></tr></thead>
+      <tbody>
+      {% for item in records %}
+      <tr>
+        <td><strong>{{ item.descricao }}</strong><small>Item {{ item.numero }} · {{ item.data_publicacao or "data não publicada" }}</small></td>
+        <td>{{ item.municipio or "Município não informado" }} / {{ item.uf }}<small>{{ item.orgao }}</small></td>
+        <td>{% if item.valor_total is not none %}R$ {{ "%.2f" | format(item.valor_total) }}{% else %}Não informado / sigiloso{% endif %}</td>
+        <td><span class="status s{{ item.status }}">{{ statuses.get(item.status, "Não identificado") }}</span></td>
+        <td><a href="{{ item.link }}" target="_blank" rel="noopener noreferrer">Ver edital ↗</a></td>
+      </tr>
+      {% else %}
+      <tr><td colspan="5" class="empty">Nenhum item encontrado. Sincronize o PNCP ou ajuste os filtros.</td></tr>
+      {% endfor %}
+      </tbody></table>
+    </div>
+    <div class="pagination">
+      <span>Página {{ page }} · {{ total }} itens nos filtros</span>
+      <div>
+        {% if page > 1 %}<a href="{{ request.url.include_query_params(page=page-1) }}">← Anterior</a>{% endif %}
+        {% if page * 25 < total %}<a href="{{ request.url.include_query_params(page=page+1) }}">Próxima →</a>{% endif %}
+      </div>
+    </div>
+  </section>
+  <footer>LicitaRadar · Fonte oficial PNCP · A situação dos itens pode mudar. Reconfirme o edital antes de decidir participar.</footer>
+</main>
+</body></html>
