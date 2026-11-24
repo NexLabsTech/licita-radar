@@ -5,7 +5,6 @@ Backup files contain PRIVATE user quotes and AI reports. Store only in private v
 from __future__ import annotations
 
 import argparse
-from contextlib import closing
 import hashlib
 import os
 import re
@@ -14,6 +13,7 @@ import signal
 import sqlite3
 import tempfile
 import threading
+from contextlib import closing
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -70,9 +70,11 @@ def backup_database(
     try:
         os.chmod(temporary, 0o600)
         source_uri = source.resolve().as_uri() + "?mode=ro"
-        with closing(sqlite3.connect(source_uri, uri=True, timeout=20)) as read_db:
-            with closing(sqlite3.connect(temporary, timeout=20)) as write_db:
-                read_db.backup(write_db, pages=128, sleep=0.05)
+        with (
+            closing(sqlite3.connect(source_uri, uri=True, timeout=20)) as read_db,
+            closing(sqlite3.connect(temporary, timeout=20)) as write_db,
+        ):
+            read_db.backup(write_db, pages=128, sleep=0.05)
         verify_sqlite(temporary)
         with temporary.open("rb") as handle:
             os.fsync(handle.fileno())
@@ -105,9 +107,11 @@ def restore_to_new_file(backup_path: str | Path, new_path: str | Path) -> Path:
     os.close(descriptor)
     try:
         source_uri = source.resolve().as_uri() + "?mode=ro"
-        with closing(sqlite3.connect(source_uri, uri=True, timeout=20)) as read_db:
-            with closing(sqlite3.connect(target, timeout=20)) as restored:
-                read_db.backup(restored)
+        with (
+            closing(sqlite3.connect(source_uri, uri=True, timeout=20)) as read_db,
+            closing(sqlite3.connect(target, timeout=20)) as restored,
+        ):
+            read_db.backup(restored)
         verify_sqlite(target)
         return target
     except BaseException:
