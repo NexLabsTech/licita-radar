@@ -95,6 +95,9 @@
     });
     quoteLink.href = "/quote?" + query.toString();
     source.append(quoteLink);
+    const aiLink = node("a", "table-link ai-link", "Analisar com IA ✦");
+    aiLink.href = "/ai?" + query.toString();
+    source.append(aiLink);
     row.append(description, location, amount, state, source);
     return row;
   }

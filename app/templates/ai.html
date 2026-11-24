@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#080910">
+  <title>Assistente de licitações · LicitaRadar</title>
+  <link rel="stylesheet" href="/static/site.css">
+</head>
+<body class="radar-body">
+  <a class="skip-link" href="#principal">Pular para o conteúdo</a>
+  <div class="ambient ambient-lime" aria-hidden="true"></div>
+  <div class="ambient ambient-pink" aria-hidden="true"></div>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="/"><span class="brand-icon" aria-hidden="true">◉</span>
+        <span>licita<span class="brand-highlight">radar</span><small>INTELLIGENCE</small></span>
+      </a>
+      <a class="ghost-button" href="/#licitacoes">← Voltar ao radar</a>
+      <div class="account-area">
+        <form method="post" action="/logout">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <button type="submit" class="logout-button">Sair ↗</button>
+        </form>
+      </div>
+    </div>
+  </header>
+  <main class="container ai-container" id="principal">
+    <section class="ai-hero glass-panel">
+      <p class="eyebrow compact"><span class="sparkle" aria-hidden="true">✦</span> ASSISTENTE PARTICULAR</p>
+      <h1>Decisões mais claras. <span class="gradient-text">Com IA.</span></h1>
+      <p class="muted">Analise riscos e requisitos usando o PNCP, sua cotação e texto do edital. A decisão permanece sua, sempre.</p>
+      <div class="ai-pill-row">
+        <span class="ai-pill"><span class="pulse-dot" aria-hidden="true"></span> {% if ai_status.available %}Provedor configurado{% else %}IA desativada{% endif %}</span>
+        {% if ai_status.available %}<span class="ai-pill">{{ ai_status.provider }} · {{ ai_status.model }}</span>
+          <span class="ai-pill">Uso hoje: {{ calls_today }}/{{ ai_status.daily_limit }}</span>
+        {% else %}<span class="ai-pill">Nenhuma chave de API no frontend</span>{% endif %}
+      </div>
+    </section>
+
+    <section class="panel glass-panel" aria-labelledby="ai-item-title">
+      <div class="panel-title"><div>
+        <p class="eyebrow compact">CONTEXTO PÚBLICO</p>
+        <h2 id="ai-item-title">{{ item.descricao }}</h2>
+        <p class="muted">{{ item.orgao }} · {{ item.municipio }} / {{ item.uf }} · Item {{ item.numero }}</p>
+      </div><a class="external-source" href="{{ item.link }}" target="_blank" rel="noopener noreferrer">Fonte PNCP ↗</a></div>
+      <div class="quote-meta">
+        <div><span>Categoria indicativa</span><strong>{{ analysis.category_label }}</strong></div>
+        <div><span>Análise financeira</span>
+          <strong>{% if analysis.status == 'potencial_financeiro' %}Margem possível, não garantida
+          {% elif analysis.status == 'margem_insuficiente' %}Margem inferior à meta
+          {% elif analysis.status == 'sem_cotacao' %}Sem cotação
+          {% elif analysis.status == 'desatualizada' %}Cotação desatualizada
+          {% else %}Sem comparação suficiente{% endif %}</strong>
+        </div>
+        <div><span>Piso financeiro calculado</span><strong>{% if analysis.min_viable %}R$ {{ analysis.min_viable }}{% else %}Não disponível{% endif %}</strong></div>
+        <div><span>Valor de referência PNCP</span><strong>{% if analysis.reference %}R$ {{ analysis.reference }}{% else %}Não publicado / sigiloso{% endif %}</strong></div>
+        <div><span>Situação</span><strong>{% if item.status == 4 %}Deserto{% elif item.status == 5 %}Fracassado{% elif item.status == 1 %}Em andamento{% else %}Confirmar no PNCP{% endif %}</strong></div>
+      </div>
+      <p class="quote-disclaimer">A IA não recalcula lucro, não conhece concorrentes não divulgados e não consulta automaticamente documentos fora do PNCP. Para calcular custos, <a class="table-link" href="/quote?tender_id={{ item.tender_id|urlencode }}&numero={{ item.numero }}">abra a cotação manual</a>.</p>
+    </section>
+
+    <div class="ai-layout">
+      <section class="panel glass-panel" aria-labelledby="ai-form-title">
+        <div class="panel-title"><div>
+          <p class="eyebrow compact">INFORMAÇÕES PARA LEITURA</p>
+          <h2 id="ai-form-title">Documento e contexto</h2>
+          <p class="muted">Você pode anexar um PDF textual ou colar um trecho do edital. Não é necessário para analisar o item público, mas evita interpretações sem fonte.</p>
+        </div><span class="panel-icon" aria-hidden="true">◎</span></div>
+
+        {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+        {% if not ai_status.available %}
+        <div class="ai-notice ai-notice-warning">
+          A integração está instalada, mas desativada. Configure AI_ENABLED, AI_PROVIDER e AI_API_KEY no servidor. A interface e as contas financeiras continuam funcionando sem IA.
+        </div>
+        {% endif %}
+        <form method="post" action="/ai" enctype="multipart/form-data" class="ai-form">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <input type="hidden" name="tender_id" value="{{ item.tender_id }}">
+          <input type="hidden" name="numero" value="{{ item.numero }}">
+          <label for="document_text">Trecho do edital (opcional, até 3.500 caracteres)</label>
+          <textarea id="document_text" name="document_text" maxlength="3500" rows="7" placeholder="Cole aqui os requisitos, especificações, prazo de entrega ou cláusulas que deseja analisar."></textarea>
+          <p class="muted ai-or">OU anexe um PDF</p>
+          <label for="document_pdf">Documento PDF (até 3 MiB e 12 páginas)</label>
+          <input id="document_pdf" name="document_pdf" type="file" accept=".pdf,application/pdf">
+          <p class="muted ai-small">PDFs digitalizados sem texto extraível não são suportados nesta etapa. O arquivo não é salvo no banco, e apenas trechos textuais limitados entram no contexto enviado ao provedor.</p>
+          <label class="consent-row" for="ai-consent">
+            <input type="checkbox" id="ai-consent" name="consent" value="yes" required>
+            <span>Autorizo o envio da descrição pública do item, dos meus cálculos de cotação e do trecho do documento para o provedor de IA configurado. Entendo que a análise pode ter custo por uso e conter erros.</span>
+          </label>
+          <button class="primary-button full-width" type="submit" {% if not ai_status.available %}disabled{% endif %}>
+            Analisar oportunidade <span aria-hidden="true">✦</span>
+          </button>
+        </form>
+        <div class="ai-notice">Apenas uma chamada é disparada por envio. O mesmo contexto/modelo pode usar resposta em cache, sem nova cobrança. Limite diário configurável: máximo 20 tentativas.</div>
+      </section>
+
+      <section class="panel glass-panel" aria-labelledby="ai-report-title">
+        <div class="panel-title"><div><p class="eyebrow compact">DECISÃO ASSISTIDA</p>
+          <h2 id="ai-report-title">Relatório de inteligência</h2>
+          <p class="muted">Interpretação da IA, nunca uma decisão automatizada de participação.</p>
+        </div><span class="panel-icon" aria-hidden="true">✦</span></div>
+        {% if report %}
+        <div class="ai-verdict">
+          <span class="ai-verdict-action">{{ {"cotar":"Pesquisar cotação","investigar":"Investigar edital","descartar":"Descartar por enquanto"}.get(report.acao, "Revisar") }}</span>
+          <span class="ai-pill">Confiança declarada: {{ report.confianca }}</span>
+          {% if cached %}<span class="ai-pill">Resposta em cache</span>{% endif %}
+        </div>
+        <p class="ai-summary">{{ report.resumo }}</p>
+        <div class="ai-sets">
+          <div><h3>Riscos identificados</h3>
+          <ul>{% for note in report.riscos %}<li>{{ note }}</li>{% else %}<li>Nenhum risco específico confirmado pelo modelo.</li>{% endfor %}</ul></div>
+          <div><h3>Requisitos a conferir</h3>
+          <ul>{% for note in report.requisitos %}<li>{{ note }}</li>{% else %}<li>Consultar edital completo.</li>{% endfor %}</ul></div>
+          <div><h3>Informações ausentes</h3>
+          <ul>{% for note in report.lacunas %}<li>{{ note }}</li>{% else %}<li>Não foram indicadas lacunas adicionais.</li>{% endfor %}</ul></div>
+          <div><h3>Próximos passos</h3>
+          <ul>{% for note in report.proximos_passos %}<li>{{ note }}</li>{% else %}<li>Revisar a fonte oficial antes de decidir.</li>{% endfor %}</ul></div>
+          {% if report.evidencias_documentais %}
+          <div><h3>Trechos apontados no documento</h3>
+          <ul>{% for note in report.evidencias_documentais %}<li>{{ note }}</li>{% endfor %}</ul></div>
+          {% endif %}
+        </div>
+        <p class="ai-footnote">Origem de documento nesta execução: {{ origin }}. O relatório não prova elegibilidade, disponibilidade de estoque ou valor competitivo. Sempre confira a publicação oficial.</p>
+        {% else %}
+        <div class="ai-empty"><span aria-hidden="true">✧</span><strong>Seu relatório aparece aqui.</strong>
+          <p>Preencha o contexto e autorize a consulta. Se não houver cotação, a IA pode apontar riscos e lacunas, mas não afirmar lucratividade.</p></div>
+        {% endif %}
+      </section>
+    </div>
+    <footer><span><strong>◉ LicitaRadar</strong> · Análise assistida</span>
+      <span>PNCP como fonte · Resposta externa sujeita a erros · Nenhum lance automatizado</span></footer>
+  </main>
+</body>
+</html>

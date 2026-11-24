@@ -166,8 +166,27 @@ def run() -> None:
                         path=str(output / ("quote-" + name + ".png")),
                         full_page=True, animations="disabled",
                     )
+                    ai_url = root + "/ai?" + urlencode({
+                        "tender_id": control, "numero": 1,
+                    })
+                    page.goto(ai_url, wait_until="networkidle")
+                    assert page.get_by_role(
+                        "heading", name="Decisões mais claras. Com IA."
+                    ).is_visible()
+                    assert page.get_by_text("IA desativada").count() >= 1
+                    assert page.get_by_role(
+                        "button", name="Analisar oportunidade"
+                    ).is_disabled()
+                    assert page.evaluate(
+                        "() => document.documentElement.scrollWidth <= window.innerWidth + 1"
+                    ), "Overflow global no assistente de " + name
+                    assert not problems, "Erro JavaScript no assistente: " + str(problems)
+                    page.screenshot(
+                        path=str(output / ("assistant-" + name + ".png")),
+                        full_page=True, animations="disabled",
+                    )
                     page.close()
-                    print("Quote visual smoke " + name + ": PASS")
+                    print("Quote + AI visual smoke " + name + ": PASS")
                 browser.close()
         finally:
             server.should_exit = True
