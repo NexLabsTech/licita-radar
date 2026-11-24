@@ -57,3 +57,69 @@ jobs:
           path: artifacts/*.png
           if-no-files-found: warn
           retention-days: 7
+
+  ops:
+    name: Container + Compose preflight / no external deployment
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: Production configuration and recovery tests
+        run: |
+          python -m pytest -q tests/test_ops.py
+          python -m compileall -q scripts/ops_setup.py scripts/ops_backup.py
+          ruff check scripts/ops_setup.py scripts/ops_backup.py tests/test_ops.py
+      - name: Create disposable CI-only credentials (never production)
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from scripts.ops_setup import initialize
+          initialize(Path("ops/runtime"), "radar.synthetic-ci.dev",
+                     "operator@synthetic-ci.dev", "ci", "SyntheticTestOnlyPassword#2026")
+          print("Ephemeral setup and preflight: PASS")
+          PY
+      - name: Validate Compose structure and Caddy syntax
+        run: |
+          docker compose --env-file ops/runtime/compose.env -f ops/compose.yaml config --quiet
+          docker run --rm --network none \
+            -e RADAR_DOMAIN=radar.synthetic-ci.dev \
+            -e ACME_EMAIL=operator@synthetic-ci.dev \
+            -v "${PWD}/ops/Caddyfile:/etc/caddy/Caddyfile:ro" \
+            caddy:2.11.9-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+      - name: Build rootless app image
+        run: docker build --tag licitaradar:ops-ci .
+      - name: Smoke real container with private synthetic secrets and persistent DB
+        run: |
+          set -eu
+          docker volume create radar-ops-ci-db
+          docker run -d --name radar-ops-ci \
+            --group-add "$(id -g)" \
+            -e APP_ENV=production -e COOKIE_SECURE=1 -e LOGIN_USERNAME=ci \
+            -e AUTO_SCAN_ENABLED=0 -e AI_ENABLED=0 \
+            -e LOGIN_PASSWORD_HASH_FILE=/run/secrets/login_password_hash \
+            -e SESSION_SECRET_FILE=/run/secrets/session_secret \
+            --mount type=volume,source=radar-ops-ci-db,target=/app/data \
+            --mount "type=bind,source=${PWD}/ops/runtime/secrets/password_hash,target=/run/secrets/login_password_hash,readonly" \
+            --mount "type=bind,source=${PWD}/ops/runtime/secrets/session_secret,target=/run/secrets/session_secret,readonly" \
+            licitaradar:ops-ci
+          trap 'docker logs radar-ops-ci 2>&1 | tail -30; docker rm -f radar-ops-ci >/dev/null 2>&1 || true' EXIT
+          for attempt in $(seq 1 35); do
+            if docker exec radar-ops-ci python -c "import urllib.request; assert urllib.request.urlopen('http://127.0.0.1:8000/healthz',timeout=2).status == 200" 2>/dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 35 ]; then exit 1; fi
+            sleep 1
+          done
+          docker exec radar-ops-ci python -c "from pathlib import Path; import sqlite3; p=Path('/app/data/licitaradar.db'); assert p.is_file(); db=sqlite3.connect(p); assert db.execute('PRAGMA integrity_check').fetchone()[0]=='ok'; db.close()"
+          test -z "$(docker port radar-ops-ci)"
+          echo "Rootless private-container health, SQLite and no published ports: PASS"
+      - name: Cleanup synthetic CI data
+        if: always()
+        run: |
+          docker rm -f radar-ops-ci 2>/dev/null || true
+          docker volume rm radar-ops-ci-db 2>/dev/null || true
