@@ -86,6 +86,10 @@ No radar, clique **Analisar com IA**: confirme o consentimento por análise e op
 python -m pytest -q tests/test_ai.py
 ```
 
+## Monitor privado de oportunidades
+
+No radar, use **☆ Acompanhar** no item para adicioná-lo aos favoritos. Em **Meu monitor**, crie até 20 regras por palavra-chave, UF, categoria e situação; visualize alertas internos, mudanças de status dos favoritos e indícios conservadores de possível republicação. As regras analisam até 500 itens recentes já armazenados inicialmente, além dos itens importados depois. Alertas são apenas dados locais, sem e-mail ou push, e não identificam concorrentes ocultos nem comprovam que o processo está aberto. Candidatos de republicação exibem os dois links originais do PNCP e exigem conferência humana.
+
 ## VPS e backups (não implantado)
 
 O pacote opcional de Docker Compose com Caddy HTTPS, segredos privados, volumes SQLite persistentes e backup/restauração não destrutiva está descrito em [ops/DEPLOY.md](ops/DEPLOY.md). CI testa configuração, contêiner sem root e recuperação; isso **não prova** domínio, HTTPS ou operação na sua VPS real. Não criar serviços pagos nem fazer deploy antes da validação dos gates.
