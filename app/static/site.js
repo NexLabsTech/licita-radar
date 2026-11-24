@@ -98,6 +98,12 @@
     const aiLink = node("a", "table-link ai-link", "Analisar com IA ✦");
     aiLink.href = "/ai?" + query.toString();
     source.append(aiLink);
+    const monitorLink = node(
+      "a", "table-link monitor-item-link",
+      item.watched ? "★ Acompanhando" : "☆ Acompanhar"
+    );
+    monitorLink.href = "/monitor?" + query.toString();
+    source.append(monitorLink);
     row.append(description, location, amount, state, source);
     return row;
   }
