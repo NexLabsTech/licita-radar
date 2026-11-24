@@ -28,6 +28,14 @@ from .ai import (
     document_input,
     init_ai,
 )
+from .coverage import (
+    CoverageError,
+    coverage_jobs,
+    create_job,
+    delete_job,
+    init_coverage,
+    next_step,
+)
 from .intelligence import CATEGORIES, analyze, validate_quote
 from .monitor import (
     change_favorite,
@@ -165,6 +173,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         init_quotes(settings.db_path)
         init_ai(settings.db_path)
         init_results(settings.db_path)
+        init_coverage(settings.db_path)
 
     def session_csrf(request: Request) -> str | None:
         if not settings.configured:
@@ -426,6 +435,88 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return no_cache(PlainTextResponse(str(exc), status_code=422))
         return no_cache(RedirectResponse("/monitor", status_code=303))
 
+
+
+    @app.get("/coverage", response_class=HTMLResponse)
+    async def coverage_page(request: Request):
+        csrf = guard(request)
+        if not isinstance(csrf, str):
+            return csrf
+        return no_cache(templates.TemplateResponse(request, "coverage.html", {
+            "csrf": csrf, "jobs": coverage_jobs(settings.db_path),
+            "today": date.today().isoformat(),
+            "start": (date.today() - timedelta(days=1)).isoformat(),
+        }))
+
+    @app.get("/api/coverage")
+    async def coverage_api(request: Request):
+        csrf = guard(request, json=True)
+        if not isinstance(csrf, str):
+            return csrf
+        return no_cache(JSONResponse({"data": coverage_jobs(settings.db_path)}))
+
+    @app.post("/coverage/start")
+    async def coverage_start(request: Request):
+        csrf = guard(request)
+        if not isinstance(csrf, str):
+            return csrf
+        form = await request.form()
+        if not check_csrf(csrf, str(form.get("csrf") or "")):
+            return no_cache(PlainTextResponse(
+                "Token de segurança inválido.", status_code=403
+            ))
+        try:
+            start = date.fromisoformat(str(form.get("start") or ""))
+            end = date.fromisoformat(str(form.get("end") or ""))
+            modality = int(str(form.get("modality") or ""))
+            create_job(
+                settings.db_path, start, end,
+                str(form.get("uf") or ""), modality,
+                str(form.get("municipality_ibge") or ""),
+            )
+        except (ValueError, TypeError) as exc:
+            return no_cache(PlainTextResponse(str(exc), status_code=422))
+        return no_cache(RedirectResponse("/coverage", status_code=303))
+
+    @app.post("/coverage/next")
+    async def coverage_next(request: Request):
+        csrf = guard(request)
+        if not isinstance(csrf, str):
+            return csrf
+        form = await request.form()
+        if not check_csrf(csrf, str(form.get("csrf") or "")):
+            return no_cache(PlainTextResponse(
+                "Token de segurança inválido.", status_code=403
+            ))
+        try:
+            job_id = int(str(form.get("id") or "0"))
+            if app.state.lock.locked():
+                return no_cache(PlainTextResponse(
+                    "Outra sincronização está em andamento.", status_code=409
+                ))
+            async with app.state.lock:
+                await next_step(settings.db_path, job_id)
+        except CoverageError as exc:
+            return no_cache(PlainTextResponse(str(exc), status_code=exc.status_code))
+        except (ValueError, TypeError):
+            return no_cache(PlainTextResponse("Pesquisa inválida.", status_code=422))
+        return no_cache(RedirectResponse("/coverage", status_code=303))
+
+    @app.post("/coverage/delete")
+    async def coverage_delete(request: Request):
+        csrf = guard(request)
+        if not isinstance(csrf, str):
+            return csrf
+        form = await request.form()
+        if not check_csrf(csrf, str(form.get("csrf") or "")):
+            return no_cache(PlainTextResponse(
+                "Token de segurança inválido.", status_code=403
+            ))
+        try:
+            delete_job(settings.db_path, int(str(form.get("id") or "0")))
+        except (CoverageError, ValueError, TypeError):
+            return no_cache(PlainTextResponse("Pesquisa inválida.", status_code=422))
+        return no_cache(RedirectResponse("/coverage", status_code=303))
 
     @app.get("/results", response_class=HTMLResponse)
     async def results_page(
