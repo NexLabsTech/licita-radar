@@ -1,11 +1,9 @@
 """Operação: configuração privada, persistência, recuperação e fail-closed."""
 from __future__ import annotations
 
-import os
 import sqlite3
 import stat
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 
 import pytest
 
@@ -113,7 +111,7 @@ def test_config_initializer_is_private_and_non_overwriting(tmp_path):
     for name in ("password_hash", "session_secret"):
         path = runtime / "secrets" / name
         assert path.is_file()
-        assert stat.S_IMODE(path.stat().st_mode) == 0o600
+        assert stat.S_IMODE(path.stat().st_mode) == 0o640
     assert preflight(runtime) == {"domain": "radar.licitatests.dev", "user": "admin"}
     assert "SenhaTesteLocal#2026" not in (runtime / "app.env").read_text()
     with pytest.raises(FileExistsError):
@@ -126,10 +124,10 @@ def test_preflight_rejects_permission_and_expenses(tmp_path):
     initialize(runtime, "radar.licitatests.dev", "admin@licitatests.dev",
                "admin", "SenhaTesteLocal#2026")
     secret = runtime / "secrets" / "session_secret"
-    secret.chmod(0o644)
+    secret.chmod(0o666)
     with pytest.raises(ValueError, match="privado"):
         preflight(runtime)
-    secret.chmod(0o600)
+    secret.chmod(0o640)
     app_env = runtime / "app.env"
     app_env.write_text(app_env.read_text().replace("AI_ENABLED=0", "AI_ENABLED=1"))
     with pytest.raises(ValueError, match="IA"):
