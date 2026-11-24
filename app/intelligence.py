@@ -134,7 +134,7 @@ def analyze(item: dict, quote: dict | None) -> dict:
     reference_raw = item.get("valor_total")
     try:
         reference = Decimal(str(reference_raw))
-        if not reference.is_finite() or reference <= 0:
+        if not reference.is_finite() or reference < CENT or reference > Decimal(10000000000000000):
             raise InvalidOperation()
     except (InvalidOperation, TypeError, ValueError):
         result["status"] = "sem_referencia"
