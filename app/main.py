@@ -9,12 +9,6 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from fastapi import FastAPI, Query, Request
-from starlette.datastructures import UploadFile
-
-from .ai import (
-    AIConfig, AIError, MAX_PDF_BYTES, analyze_opportunity, calls_today,
-    document_input, init_ai,
-)
 from fastapi.responses import (
     HTMLResponse,
     JSONResponse,
@@ -23,6 +17,17 @@ from fastapi.responses import (
 )
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.datastructures import UploadFile
+
+from .ai import (
+    MAX_PDF_BYTES,
+    AIConfig,
+    AIError,
+    analyze_opportunity,
+    calls_today,
+    document_input,
+    init_ai,
+)
 
 from .intelligence import CATEGORIES, analyze, validate_quote
 from .pncp import sync_pncp
