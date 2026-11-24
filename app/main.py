@@ -4,11 +4,17 @@ import hmac
 import os
 import time
 from contextlib import asynccontextmanager, suppress
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, timedelta
 from pathlib import Path
 
 from fastapi import FastAPI, Query, Request
+from starlette.datastructures import UploadFile
+
+from .ai import (
+    AIConfig, AIError, MAX_PDF_BYTES, analyze_opportunity, calls_today,
+    document_input, init_ai,
+)
 from fastapi.responses import (
     HTMLResponse,
     JSONResponse,
@@ -46,6 +52,7 @@ class Settings:
     auto_scan: bool = False
     scan_interval_minutes: int = 360
     scan_uf: str = "SP"
+    ai: AIConfig = field(default_factory=AIConfig)
 
     @classmethod
     def from_env(cls):
@@ -60,6 +67,13 @@ class Settings:
             auto_scan=os.getenv("AUTO_SCAN_ENABLED", "0") == "1",
             scan_interval_minutes=int(os.getenv("AUTO_SCAN_INTERVAL_MINUTES", "360")),
             scan_uf=os.getenv("AUTO_SCAN_UF", "SP").strip().upper(),
+            ai=AIConfig(
+                enabled=os.getenv("AI_ENABLED", "0") == "1",
+                provider=os.getenv("AI_PROVIDER", "deepseek").strip().lower(),
+                key=os.getenv("AI_API_KEY", ""),
+                model=os.getenv("AI_MODEL", "").strip(),
+                daily_limit=int(os.getenv("AI_DAILY_LIMIT", "10")),
+            ),
         )
 
     @property
@@ -101,10 +115,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.mount("/static", StaticFiles(directory=str(ROOT / "static")), name="static")
     app.state.settings = settings
     app.state.lock = asyncio.Lock()
+    app.state.ai_lock = asyncio.Lock()
     app.state.failed_attempts: dict[str, list[float]] = {}
     if settings.configured:
         init_db(settings.db_path)
         init_quotes(settings.db_path)
+        init_ai(settings.db_path)
 
     def session_csrf(request: Request) -> str | None:
         if not settings.configured:
@@ -328,6 +344,94 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         target = urlencode({"tender_id": tender_id, "numero": numero})
         return no_cache(RedirectResponse("/quote?" + target, status_code=303))
+
+
+    def ai_context(item: dict, csrf: str, *, report: dict | None = None,
+                   origin: str = "Sem documento fornecido", cached: bool = False,
+                   error: str | None = None):
+        quote = get_quote(settings.db_path, item["tender_id"], item["numero"])
+        financial = analyze(item, quote)
+        return {
+            "csrf": csrf, "item": item, "analysis": financial,
+            "ai_status": settings.ai.public_status(),
+            "calls_today": calls_today(settings.db_path),
+            "report": report, "origin": origin, "cached": cached, "error": error,
+        }
+
+    @app.get("/ai", response_class=HTMLResponse)
+    async def ai_page(
+        request: Request,
+        tender_id: str = Query(..., min_length=1, max_length=180),
+        numero: int = Query(..., ge=1, le=100000),
+    ):
+        csrf = guard(request)
+        if not isinstance(csrf, str):
+            return csrf
+        item = get_item(settings.db_path, tender_id, numero)
+        if item is None:
+            return no_cache(PlainTextResponse("Item não encontrado.", status_code=404))
+        return no_cache(templates.TemplateResponse(
+            request, "ai.html", ai_context(item, csrf),
+        ))
+
+    @app.post("/ai", response_class=HTMLResponse)
+    async def ai_submit(request: Request):
+        csrf = guard(request)
+        if not isinstance(csrf, str):
+            return csrf
+        form_data = await request.form()
+        if not check_csrf(csrf, str(form_data.get("csrf") or "")):
+            return no_cache(PlainTextResponse("Token de segurança inválido.", status_code=403))
+        tender_id = str(form_data.get("tender_id") or "")
+        try:
+            numero = int(str(form_data.get("numero") or "0"))
+        except ValueError:
+            return no_cache(PlainTextResponse("Item inválido.", status_code=422))
+        if not 1 <= len(tender_id) <= 180 or not 1 <= numero <= 100000:
+            return no_cache(PlainTextResponse("Item inválido.", status_code=422))
+        item = get_item(settings.db_path, tender_id, numero)
+        if item is None:
+            return no_cache(PlainTextResponse("Item não encontrado.", status_code=404))
+        if form_data.get("consent") != "yes":
+            return no_cache(PlainTextResponse(
+                "Confirme o compartilhamento dos dados com o provedor de IA.",
+                status_code=403,
+            ))
+        if not settings.ai.valid:
+            return no_cache(templates.TemplateResponse(
+                request, "ai.html", ai_context(
+                    item, csrf, error="IA desativada. Configure AI_ENABLED=1 e "
+                    "AI_API_KEY no ambiente privado do servidor.",
+                ), status_code=503
+            ))
+        try:
+            excerpt = str(form_data.get("document_text") or "")
+            if len(excerpt) > 3500:
+                raise AIError("Trecho de texto maior que 3.500 caracteres.")
+            upload = form_data.get("document_pdf")
+            pdf_bytes = None
+            if isinstance(upload, UploadFile) and upload.filename:
+                if not upload.filename.casefold().endswith(".pdf"):
+                    raise AIError("Anexe somente arquivo .pdf.")
+                pdf_bytes = await upload.read(MAX_PDF_BYTES + 1)
+            document, origin = document_input(excerpt, pdf_bytes)
+            quote = get_quote(settings.db_path, tender_id, numero)
+            async with app.state.ai_lock:
+                report, cached = await analyze_opportunity(
+                    settings.db_path, settings.ai, item, quote,
+                    document, origin,
+                )
+        except AIError as exc:
+            return no_cache(templates.TemplateResponse(
+                request, "ai.html", ai_context(
+                    item, csrf, error=str(exc),
+                ), status_code=exc.status_code
+            ))
+        return no_cache(templates.TemplateResponse(
+            request, "ai.html", ai_context(
+                item, csrf, report=report, origin=origin, cached=cached,
+            ),
+        ))
 
     @app.post("/sync")
     async def synchronize(request: Request):
