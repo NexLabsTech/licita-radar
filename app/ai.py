@@ -377,7 +377,7 @@ async def run_model(
     except AIError:
         raise
     except (httpx.HTTPError, json.JSONDecodeError, ValueError, TypeError,
-            AttributeError, KeyError) as exc:
+            AttributeError, KeyError):
         raise AIError(
             "Falha ou resposta inválida do provedor. Nenhuma conclusão foi salva.",
             502,
