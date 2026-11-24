@@ -63,6 +63,29 @@ Matemática por lote (Decimal com arredondamento para cima no piso):
 
 **Importante:** o piso é o menor preço viável para sua margem, não um "lance máximo" ou sugestão de preço vencedor. O valor de referência publicado pode ser sigiloso, não garante venda nem que o item esteja aberto. Faça conferência de tributos por seu regime, prazo, documentação e especificações do edital. Não há cotações de fornecedores em tempo real nem recomendação gerada por LLM nesta etapa.
 
+## Assistente de IA (opcional, sem chave no repositório)
+
+**DeepSeek oficial confirmado:** `AI_PROVIDER=deepseek` e `AI_MODEL=deepseek-flash` (modelo DeepSeek-V4.1-Flash-1017, conforme documentação 2026-11-23). Alternativa: `AI_PROVIDER=openrouter` e `AI_MODEL=deepseek/deepseek-v4.1-flash`. O host do provedor é fixo no código: nenhum endpoint arbitrário é aceito. Documentação: https://api-docs.deepseek.com/quick_start/pricing/ .
+
+Para habilitar, configure somente no ambiente privado do servidor:
+
+```ini
+AI_ENABLED=1
+AI_PROVIDER=deepseek
+AI_MODEL=deepseek-flash
+AI_API_KEY=SUA_CHAVE_PRIVADA_NUNCA_NO_GITHUB
+AI_DAILY_LIMIT=10
+```
+
+A chave deve ficar fora do repositório e de arquivos versionados. Modelo e endpoint são validados; sem chave e `AI_ENABLED=1`, o assistente fica desativado sem interromper a aplicação. **Não foi testada uma chave real nem executada chamada faturável.**
+
+No radar, clique **Analisar com IA**: confirme o consentimento por análise e opcionalmente cole texto (até 3.500 caracteres) OU envie um PDF textual de até 3 MiB e 12 páginas. Um trecho extraído (até 6.500 caracteres) é transmitido ao provedor escolhido, juntamente com descrição pública e resumo de seus custos calculados; o PDF original não é persistido. A leitura não contempla PDFs escaneados/OCR nem busca automática de anexos. O sistema usa JSON estrito, rejeita fontes documentais não encontradas no texto, impede números financeiros gerados pela IA, restringe decisões a cotar/investigar/descartar, reutiliza cache por contexto e limita tentativas a 10/dia por padrão (máximo 20). **Uma resposta não garante edital válido, disponibilidade, margem ou vitória.**
+
+```bash
+# Checagens locais sem chave e sem custos API:
+python -m pytest -q tests/test_ai.py
+```
+
 ## Links de referência
 
 - [PNCP](https://pncp.gov.br/app/editais)
