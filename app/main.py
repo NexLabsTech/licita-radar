@@ -29,6 +29,15 @@ from .ai import (
     init_ai,
 )
 from .intelligence import CATEGORIES, analyze, validate_quote
+from .monitor import (
+    change_favorite,
+    create_rule,
+    delete_rule,
+    mark_read,
+    monitor_data,
+    unread_count,
+    watched_keys,
+)
 from .pncp import sync_pncp
 from .quotes import get_item, get_quote, get_quotes_for_items, init_quotes, save_quote
 from .scheduler import periodic_scan_loop
@@ -256,10 +265,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             settings.db_path, q=q.strip(), uf=uf, status=status, page=page,
             category=category)
         quote_map = get_quotes_for_items(settings.db_path, records)
+        watched = watched_keys(settings.db_path, records)
         for record in records:
             record["analysis"] = analyze(
                 record, quote_map.get((record["tender_id"], record["numero"]))
             )
+            record["watched"] = (record["tender_id"], record["numero"]) in watched
         end = date.today()
         start = end - timedelta(days=1)
         return no_cache(templates.TemplateResponse(request, "dashboard.html", {
@@ -268,6 +279,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "status": status, "page": page, "category": category,
             "categories": CATEGORIES,
             "events": recent_events(settings.db_path, 10),
+            "unread_alerts": unread_count(settings.db_path),
             "auto_scan": settings.auto_scan,
             "scan_interval": settings.scan_interval_minutes,
             "scan_uf": settings.scan_uf,
@@ -293,10 +305,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             settings.db_path, q=q.strip(), uf=uf, status=status, page=page,
             category=category)
         quote_map = get_quotes_for_items(settings.db_path, rows)
+        watched = watched_keys(settings.db_path, rows)
         for row in rows:
             row["analysis"] = analyze(
                 row, quote_map.get((row["tender_id"], row["numero"]))
             )
+            row["watched"] = (row["tender_id"], row["numero"]) in watched
         return no_cache(JSONResponse({
             "data": rows, "total": total, "page": page,
             "counts": counts, "last_sync": latest,
@@ -310,6 +324,98 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return csrf
         return no_cache(JSONResponse({"data": recent_events(settings.db_path, 100)}))
 
+
+
+    @app.get("/monitor", response_class=HTMLResponse)
+    async def monitor_page(request: Request,
+                           tender_id: str = Query("", max_length=180),
+                           numero: int = Query(0, ge=0, le=100000)):
+        csrf = guard(request)
+        if not isinstance(csrf, str):
+            return csrf
+        data = monitor_data(settings.db_path)
+        focused = get_item(settings.db_path, tender_id, numero) if tender_id and numero else None
+        watched = watched_keys(settings.db_path, [focused]) if focused else set()
+        return no_cache(templates.TemplateResponse(request, "monitor.html", {
+            "csrf": csrf, "data": data, "focused": focused,
+            "focused_watched": bool(watched), "statuses": STATUSES,
+            "categories": CATEGORIES,
+        }))
+
+    @app.get("/api/monitor")
+    async def monitor_api(request: Request):
+        csrf = guard(request, json=True)
+        if not isinstance(csrf, str):
+            return csrf
+        # Campos privados, nunca publicados sem sessão.
+        return no_cache(JSONResponse(monitor_data(settings.db_path)))
+
+    async def monitor_form(request: Request):
+        csrf = guard(request)
+        if not isinstance(csrf, str):
+            return None, csrf
+        form = await request.form()
+        supplied = str(form.get("csrf") or "")
+        if not check_csrf(csrf, supplied):
+            return None, no_cache(PlainTextResponse(
+                "Token de segurança inválido.", status_code=403
+            ))
+        return form, None
+
+    @app.post("/monitor/rule")
+    async def monitor_rule_create(request: Request):
+        form, error = await monitor_form(request)
+        if error is not None:
+            return error
+        try:
+            status = int(str(form.get("status") or "0"))
+            create_rule(
+                settings.db_path, str(form.get("keyword") or ""),
+                str(form.get("uf") or ""), status,
+                str(form.get("category") or ""),
+            )
+        except (ValueError, TypeError) as exc:
+            return no_cache(PlainTextResponse(str(exc), status_code=422))
+        return no_cache(RedirectResponse("/monitor", status_code=303))
+
+    @app.post("/monitor/rule/delete")
+    async def monitor_rule_delete(request: Request):
+        form, error = await monitor_form(request)
+        if error is not None:
+            return error
+        try:
+            delete_rule(settings.db_path, int(str(form.get("id") or "0")))
+        except (ValueError, TypeError) as exc:
+            return no_cache(PlainTextResponse(str(exc), status_code=422))
+        return no_cache(RedirectResponse("/monitor", status_code=303))
+
+    @app.post("/monitor/favorite")
+    async def monitor_favorite(request: Request):
+        form, error = await monitor_form(request)
+        if error is not None:
+            return error
+        try:
+            action = str(form.get("action") or "")
+            if action not in ("add", "remove"):
+                raise ValueError("Ação inválida.")
+            change_favorite(
+                settings.db_path, str(form.get("tender_id") or ""),
+                int(str(form.get("numero") or "0")), action == "add",
+            )
+        except (ValueError, TypeError) as exc:
+            return no_cache(PlainTextResponse(str(exc), status_code=422))
+        return no_cache(RedirectResponse("/monitor", status_code=303))
+
+    @app.post("/monitor/read")
+    async def monitor_mark_read(request: Request):
+        form, error = await monitor_form(request)
+        if error is not None:
+            return error
+        try:
+            mark_read(settings.db_path, int(str(form.get("id") or "0")))
+        except (ValueError, TypeError) as exc:
+            return no_cache(PlainTextResponse(str(exc), status_code=422))
+        return no_cache(RedirectResponse("/monitor", status_code=303))
 
     @app.get("/quote", response_class=HTMLResponse)
     async def quote_page(

@@ -77,6 +77,38 @@ def init_db(path: str):
             errors INTEGER NOT NULL,
             details TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS monitor_rules (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            keyword TEXT NOT NULL COLLATE NOCASE,
+            uf TEXT NOT NULL DEFAULT '',
+            status INTEGER NOT NULL DEFAULT 0 CHECK(status IN (0,1,4,5)),
+            category TEXT NOT NULL DEFAULT '',
+            created_at TEXT NOT NULL,
+            UNIQUE(keyword,uf,status,category)
+        );
+        CREATE TABLE IF NOT EXISTS monitor_favorites (
+            tender_id TEXT NOT NULL REFERENCES tenders(id) ON DELETE CASCADE,
+            numero INTEGER NOT NULL,
+            created_at TEXT NOT NULL,
+            PRIMARY KEY(tender_id,numero)
+        );
+        CREATE TABLE IF NOT EXISTS monitor_alerts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            dedupe_key TEXT NOT NULL UNIQUE,
+            kind TEXT NOT NULL CHECK(kind IN ('rule_match','watched_change','candidate_republication')),
+            tender_id TEXT NOT NULL REFERENCES tenders(id) ON DELETE CASCADE,
+            numero INTEGER NOT NULL,
+            source_tender_id TEXT,
+            source_numero INTEGER,
+            title TEXT NOT NULL,
+            detail TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            read_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_monitor_alerts_unread
+            ON monitor_alerts(read_at,id DESC);
+        CREATE INDEX IF NOT EXISTS idx_monitor_favorites_tender
+            ON monitor_favorites(tender_id,numero);
         """)
 
 
@@ -103,6 +135,8 @@ def upsert_tender(path: str, tender: dict, items: list[dict]) -> int:
                 "SELECT numero,status FROM items WHERE tender_id = ?", (tender["id"],))
         }
         db.execute("DELETE FROM items WHERE tender_id = ?", (tender["id"],))
+        from .monitor import observe_import
+
         for item in valid:
             status = int(item.get("situacaoCompraItemId") or 0)
             if status not in STATUSES:
@@ -128,6 +162,8 @@ def upsert_tender(path: str, tender: dict, items: list[dict]) -> int:
                 item.get("quantidade"), None if confidential else item.get("valorTotal"),
                 status, item.get("dataAtualizacao"), stamp
             ))
+            # Notificação e dados PNCP na MESMA transação: rollback em falha.
+            observe_import(db, tender, item, old_status, stamp)
     return len(valid)
 
 

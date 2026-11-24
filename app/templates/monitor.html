@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#080910">
+  <title>Meu monitor · LicitaRadar</title>
+  <link rel="stylesheet" href="/static/site.css">
+</head>
+<body class="radar-body">
+  <a class="skip-link" href="#principal">Pular para o conteúdo</a>
+  <div class="ambient ambient-lime" aria-hidden="true"></div>
+  <div class="ambient ambient-pink" aria-hidden="true"></div>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="/" aria-label="LicitaRadar início">
+        <span class="brand-icon" aria-hidden="true">◉</span>
+        <span>licita<span class="brand-highlight">radar</span><small>INTELLIGENCE</small></span>
+      </a>
+      <nav class="main-nav" aria-label="Seções">
+        <a class="nav-link" href="/">Radar</a>
+        <a class="nav-link active" href="/monitor" aria-current="page">Meu monitor</a>
+      </nav>
+      <div class="account-area">
+        <span class="account-badge"><span class="pulse-dot" aria-hidden="true"></span> Privado</span>
+        <form method="post" action="/logout">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <button class="logout-button" type="submit">Sair ↗</button>
+        </form>
+      </div>
+    </div>
+  </header>
+
+  <main id="principal" class="container monitor-container">
+    <section class="glass-panel monitor-hero">
+      <p class="eyebrow compact"><span class="sparkle" aria-hidden="true">✦</span> SUA OPERAÇÃO DE COMPRAS PÚBLICAS</p>
+      <h1>Oportunidades no <span class="gradient-text">seu radar.</span></h1>
+      <p class="muted">Salve itens, crie filtros e encontre coincidências entre contratações. Os alertas são internos, gerados somente quando o aplicativo coleta dados.</p>
+      <div class="monitor-pills">
+        <span class="monitor-pill">✦ {{ data.unread }} não lidos</span>
+        <span class="monitor-pill">◎ {{ data.favorites|length }} acompanhados</span>
+        <span class="monitor-pill">◈ {{ data.rules|length }}/20 regras</span>
+      </div>
+      <p class="monitor-disclaimer">Não há push, e-mail ou acompanhamento de propostas em tempo real. Uma possível republicação é somente um indício, sem comprovação de vínculo ou edital aberto. Confira as fontes PNCP.</p>
+    </section>
+
+    {% if focused %}
+    <section class="panel glass-panel monitor-focused" aria-labelledby="focus-title">
+      <div class="panel-title">
+        <div><p class="eyebrow compact">ITEM SELECIONADO</p>
+          <h2 id="focus-title">{{ focused.descricao }}</h2>
+          <p class="muted">{{ focused.orgao }} · {{ focused.municipio }}/{{ focused.uf }} · Item {{ focused.numero }}</p>
+        </div>
+        <a class="table-link" href="{{ focused.link }}" target="_blank" rel="noopener noreferrer">Ver PNCP ↗</a>
+      </div>
+      <form action="/monitor/favorite" method="post" class="monitor-inline">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <input type="hidden" name="tender_id" value="{{ focused.tender_id }}">
+        <input type="hidden" name="numero" value="{{ focused.numero }}">
+        <input type="hidden" name="action" value="{{ 'remove' if focused_watched else 'add' }}">
+        <button class="{{ 'ghost-button' if focused_watched else 'primary-button' }}" type="submit">
+          {{ 'Remover dos favoritos' if focused_watched else '★ Acompanhar este item' }}
+        </button>
+        <a class="ghost-button" href="/quote?tender_id={{ focused.tender_id|urlencode }}&numero={{ focused.numero }}">Abrir cálculo de margem ↗</a>
+      </form>
+    </section>
+    {% endif %}
+
+    <div class="monitor-grid">
+      <section class="panel glass-panel" aria-labelledby="rules-title">
+        <div class="panel-title">
+          <div><p class="eyebrow compact">FILTROS SALVOS</p><h2 id="rules-title">Regras de oportunidade</h2>
+            <p class="muted">O sistema identifica palavras no objeto e descrição dos itens efetivamente coletados.</p>
+          </div><span class="panel-icon" aria-hidden="true">⌕</span>
+        </div>
+        <form action="/monitor/rule" method="post" class="monitor-rule-form">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <label for="rule_keyword">Produto ou palavra-chave</label>
+          <input id="rule_keyword" type="text" name="keyword" maxlength="80" minlength="3" placeholder="Ex.: papel sulfite" required>
+          <div class="monitor-rule-grid">
+            <div><label for="rule_uf">UF</label>
+              <input id="rule_uf" type="text" name="uf" maxlength="2" placeholder="Todas">
+            </div>
+            <div><label for="rule_status">Situação</label>
+              <select id="rule_status" name="status">
+                <option value="0">Em andamento, deserto ou fracassado</option>
+                <option value="1">Em andamento</option>
+                <option value="4">Deserto</option>
+                <option value="5">Fracassado</option>
+              </select>
+            </div>
+          </div>
+          <label for="rule_category">Categoria indicativa</label>
+          <select id="rule_category" name="category">
+            <option value="">Todas as categorias</option>
+            {% for code, data in categories.items() %}
+            <option value="{{ code }}">{{ data }}</option>
+            {% endfor %}
+          </select>
+          <button class="primary-button full-width" type="submit">Criar regra <span aria-hidden="true">✦</span></button>
+        </form>
+        <p class="muted monitor-small">A regra verifica até 500 registros recentes já existentes e novos itens importados. O filtro não afirma que há propostas ou fornecedores disponíveis.</p>
+        <div class="monitor-rules-list">
+          {% for rule in data.rules %}
+          <div class="monitor-rule-card">
+            <div><strong>{{ rule.keyword }}</strong>
+              <small>{{ rule.uf or "Brasil" }} · {{ statuses.get(rule.status, "Em andamento, deserto e fracassado") if rule.status else "Situações elegíveis" }} · {{ rule.category or "Todas as categorias" }}</small>
+            </div>
+            <form method="post" action="/monitor/rule/delete">
+              <input type="hidden" name="csrf" value="{{ csrf }}">
+              <input type="hidden" name="id" value="{{ rule.id }}">
+              <button type="submit" class="monitor-mini-button" aria-label="Excluir regra {{ rule.keyword }}">Excluir</button>
+            </form>
+          </div>
+          {% else %}
+          <p class="muted monitor-empty">Nenhuma regra criada. Comece pelas mercadorias fáceis de encontrar.</p>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="panel glass-panel" aria-labelledby="favorites-title">
+        <div class="panel-title">
+          <div><p class="eyebrow compact">ACOMPANHAMENTO PARTICULAR</p><h2 id="favorites-title">Favoritos</h2>
+            <p class="muted">Até 100 itens. A importação não apaga seus favoritos.</p>
+          </div><span class="panel-icon" aria-hidden="true">★</span>
+        </div>
+        <div class="monitor-favorites-list">
+          {% for item in data.favorites %}
+          <article class="monitor-favorite">
+            <div class="monitor-favorite-head">
+              <span class="status s{{ item.status }}">{{ statuses.get(item.status, "Não identificado") }}</span>
+              <span class="monitor-muted">{{ item.municipio }}/{{ item.uf }}</span>
+            </div>
+            <strong>{{ item.descricao }}</strong>
+            <small>{{ item.orgao }} · Item {{ item.numero }}</small>
+            <div class="monitor-actions">
+              <a class="table-link" href="{{ item.link }}" target="_blank" rel="noopener noreferrer">Fonte PNCP ↗</a>
+              <a class="table-link" href="/quote?tender_id={{ item.tender_id|urlencode }}&numero={{ item.numero }}">Margem ↗</a>
+              <form action="/monitor/favorite" method="post">
+                <input type="hidden" name="csrf" value="{{ csrf }}">
+                <input type="hidden" name="tender_id" value="{{ item.tender_id }}">
+                <input type="hidden" name="numero" value="{{ item.numero }}">
+                <input type="hidden" name="action" value="remove">
+                <button class="monitor-mini-button" type="submit">Remover</button>
+              </form>
+            </div>
+          </article>
+          {% else %}
+          <div class="monitor-empty-state"><span aria-hidden="true">◎</span>
+            <strong>Nenhum item acompanhado.</strong>
+            <p>Abra o radar, selecione uma licitação e toque em Acompanhar.</p>
+            <a class="ghost-button" href="/#licitacoes">Explorar licitações ↗</a>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+    </div>
+
+    <section class="panel glass-panel" aria-labelledby="alerts-title">
+      <div class="panel-title">
+        <div><p class="eyebrow compact">CAIXA DE ENTRADA LOCAL</p>
+          <h2 id="alerts-title">Alertas de oportunidade <span class="count">{{ data.unread }} não lidos</span></h2>
+          <p class="muted">Cada aviso tem origem em dados que já foram importados. Todos exigem confirmação na fonte.</p>
+        </div><span class="panel-icon" aria-hidden="true">✦</span>
+      </div>
+      <div class="monitor-alert-list">
+      {% for alert in data.alerts %}
+        <article class="monitor-alert {{ 'monitor-alert-unread' if alert.read_at is none else '' }}">
+          <div class="monitor-alert-content">
+            <div class="monitor-alert-eyebrow">
+              {% if alert.kind == 'candidate_republication' %}
+                <span class="monitor-kind monitor-kind-pink">Possível republicação</span>
+              {% elif alert.kind == 'watched_change' %}
+                <span class="monitor-kind">Mudança de situação</span>
+              {% else %}<span class="monitor-kind">Regra correspondida</span>{% endif %}
+              <span>{{ alert.created_at[:19] }} UTC</span>
+            </div>
+            <h3>{{ alert.title }}</h3>
+            <p>{{ alert.detail }}</p>
+            <small>{{ alert.descricao or "Item já não encontrado no armazenamento" }} · {{ alert.municipio }}/{{ alert.uf }} · Item {{ alert.numero }}</small>
+            <div class="monitor-actions">
+              <a class="table-link" href="{{ alert.link }}" target="_blank" rel="noopener noreferrer">Conferir contratação atual ↗</a>
+              {% if alert.source_link %}
+              <a class="table-link" href="{{ alert.source_link }}" target="_blank" rel="noopener noreferrer">Conferir contratação anterior ↗</a>
+              {% endif %}
+            </div>
+          </div>
+          {% if alert.read_at is none %}
+          <form method="post" action="/monitor/read">
+            <input type="hidden" name="csrf" value="{{ csrf }}">
+            <input type="hidden" name="id" value="{{ alert.id }}">
+            <button class="monitor-mini-button" type="submit">Marcar lido</button>
+          </form>
+          {% else %}<span class="monitor-read">Lido</span>{% endif %}
+        </article>
+      {% else %}
+        <div class="monitor-empty-state"><span aria-hidden="true">✧</span>
+          <strong>Nenhum alerta ainda.</strong>
+          <p>Crie regras e importe dados oficiais. Coincidências e mudanças aparecerão aqui.</p>
+        </div>
+      {% endfor %}
+      </div>
+      <p class="muted monitor-small">Exibidos até 80 alertas recentes. Não há contagem de participantes sem fonte pública verificável. Resultados não são instantâneos.</p>
+    </section>
+    <footer><span><strong>◉ LicitaRadar</strong> · Meu monitor privado</span>
+      <span>Fonte: PNCP · Alertas informativos · Sem participação automática</span></footer>
+  </main>
+</body>
+</html>
