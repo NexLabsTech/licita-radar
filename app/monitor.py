@@ -5,6 +5,7 @@ Não declara competição, reabertura ou republicação como fatos provados.
 from __future__ import annotations
 
 import hashlib
+import math
 import re
 import unicodedata
 from datetime import UTC, date, datetime
@@ -14,7 +15,6 @@ from .storage import connection
 
 RULE_LIMIT = 20
 FAVORITE_LIMIT = 100
-HISTORY_LIMIT = 5000
 CANDIDATE_DAYS = 365
 KINDS = frozenset({"rule_match", "watched_change", "candidate_republication"})
 
@@ -143,7 +143,14 @@ def observe_import(db, tender: dict, item: dict, previous_status: int | None,
         current_quantity = item.get("quantidade")
         if previous_quantity is None or current_quantity is None:
             continue
-        if abs(float(previous_quantity) - float(current_quantity)) > 1e-9:
+        try:
+            before = float(previous_quantity)
+            after = float(current_quantity)
+        except (ValueError, TypeError, OverflowError):
+            continue
+        if not math.isfinite(before) or not math.isfinite(after):
+            continue
+        if abs(before - after) > 1e-9:
             continue
         _notify(
             db, key=("candidate_republication", original["tender_id"],
@@ -198,7 +205,7 @@ def create_rule(path: str, keyword: str, uf: str = "", status: int = 0,
         rule = db.execute("SELECT * FROM monitor_rules WHERE id=?", (rule_id,)).fetchone()
         # Backfill limitado a 500 itens atuais recentes, sem afirmar cobertura exaustiva.
         rows = db.execute("""
-            SELECT i.*, t.id, t.cnpj, t.objeto, t.uf, t.data_publicacao
+            SELECT i.*, t.objeto, t.uf, t.data_publicacao
             FROM items i JOIN tenders t ON t.id=i.tender_id
             WHERE i.status IN (1,4,5)
             ORDER BY t.data_publicacao DESC
