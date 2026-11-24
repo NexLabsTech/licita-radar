@@ -314,3 +314,28 @@ def test_continuation_endpoint_guarded_without_network(client, monkeypatch):
     assert client.post("/coverage/next", data={
         "csrf": csrf(client), "id": "not-an-id",
     }).status_code == 422
+
+
+def test_busy_scan_refuses_cursor_removal_or_second_continuation(client):
+    login(client)
+    form = {
+        "csrf": csrf(client), "start": FIRST, "end": LAST,
+        "modality": "6", "uf": "SP", "municipality_ibge": "3509502",
+    }
+    assert client.post("/coverage/start", data=form, follow_redirects=False).status_code == 303
+
+    class BusyLock:
+        def locked(self):
+            return True
+
+    real_lock = client.app.state.lock
+    client.app.state.lock = BusyLock()
+    try:
+        for url in ("/coverage/delete", "/coverage/next"):
+            response = client.post(url, data={
+                "csrf": csrf(client), "id": "1",
+            })
+            assert response.status_code == 409
+        assert len(client.get("/api/coverage").json()["data"]) == 1
+    finally:
+        client.app.state.lock = real_lock
