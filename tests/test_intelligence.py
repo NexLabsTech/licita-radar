@@ -1,5 +1,6 @@
 """Motor de lucro sem invenção de custos, cotação segura e recuperação de dados."""
 import re
+import sqlite3
 from decimal import Decimal
 
 import pytest
@@ -15,7 +16,7 @@ from app.intelligence import (
 from app.main import Settings, create_app
 from app.quotes import get_item, get_quote, init_quotes, save_quote
 from app.security import hash_password
-from app.storage import init_db, list_items, upsert_tender
+from app.storage import connection, init_db, list_items, upsert_tender
 
 
 def sample_tender():
@@ -260,3 +261,21 @@ def test_impossible_official_reference_does_not_crash_or_invent_profit(db_path, 
     assert result["status"] == "sem_referencia"
     assert result["profit_reference"] is None
     assert result["reference"] is None
+
+
+def test_sqlite_connection_is_closed_and_failed_writes_are_rolled_back(db_path):
+    with connection(db_path) as database:
+        initial = database.execute("SELECT COUNT(*) FROM sync_runs").fetchone()[0]
+    with pytest.raises(sqlite3.ProgrammingError):
+        database.execute("SELECT 1")
+    with pytest.raises(RuntimeError):
+        with connection(db_path) as database:
+            database.execute("""
+                INSERT INTO sync_runs
+                (started_at,fetched,material_items,errors,details)
+                VALUES ('2026-11-23',1,1,0,'synthetic')
+            """)
+            raise RuntimeError("simular falha após alteração")
+    with connection(db_path) as database:
+        final = database.execute("SELECT COUNT(*) FROM sync_runs").fetchone()[0]
+    assert final == initial
