@@ -13,7 +13,7 @@ PNCP_RESULT_ROOT = "https://pncp.gov.br/api/pncp/v1/orgaos"
 MAX_BODY_BYTES = 512 * 1024
 MAX_RESULTS = 200
 COOLDOWN_SECONDS = 60
-MAX_NUMBER = Decimal("1000000000000")
+MAX_NUMBER = Decimal(1000000000000)
 FOUR = Decimal("0.0001")
 RESULT_STATES = {0: "Situação desconhecida", 1: "Informado", 2: "Cancelado"}
 
@@ -230,7 +230,7 @@ async def refresh_item_results(
     except ResultFetchError as exc:
         _record_error(path, tender_id, number, source, checked, str(exc))
         raise
-    except (httpx.HTTPError, ValueError, TypeError, UnicodeError) as exc:
+    except (httpx.HTTPError, ValueError, TypeError, UnicodeError):
         error = ResultFetchError(
             "PNCP indisponível ou resposta inválida. Snapshot anterior preservado.", 503
         )
