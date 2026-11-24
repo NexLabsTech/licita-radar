@@ -1,6 +1,6 @@
 # LR-MVP-WO-001 | Work Order e Evidence Bundle
 
-**Status:** EXECUTING / pendente de CI e auditoria. **Base SHA:** 85bacf56e4782fb6e1c10f8fd284e2ca0222408c. **Branch:** feat/lr-mvp-wo-001. **Risk:** STANDARD (autenticação e fonte externa); aumentar se deploy público.
+**Status:** APPROVED (código pré-produção; release e deploy bloqueados). **Base SHA:** 85bacf56e4782fb6e1c10f8fd284e2ca0222408c. **Branch:** feat/lr-mvp-wo-001. **Risk:** STANDARD (autenticação e fonte externa); aumentar se deploy público.
 
 ## Objective
 Entregar MVP real de radar PNCP de produtos com login de usuário único e CI.
@@ -34,7 +34,7 @@ ruff; compileall; pytest; Evidence Bundle com base/head SHA, escopo, testes, lim
 Nenhum próximo incremento, merge ou deploy sem CI/testes auditados e sem defeitos HIGH/CRITICAL.
 
 ## Evidence Bundle (pré-CI)
-Implementados no branch: autenticação local sem cadastro, Jinja, persistência SQLite, cliente PNCP, testes e workflow. Testes **ainda não validados pelo CI** neste registro inicial. Limites declarados: importação manual até 20 contratações, até 500 itens por compra, sem análise de participantes, armazenamento local não escalável. Fonte oficial: https://pncp.gov.br/manual/pt-br/latest/contratacao/consultar_itens_de_uma_contratacao.html
+Implementados no branch: autenticação local sem cadastro, Jinja, persistência SQLite, cliente PNCP, testes e workflow. Testes **validados** no GitHub Actions run 45304898676, head 2a0f1fb1541e8e7a9f2507ddbc5c98fa8ab99e36: Python 3.12/3.13, 14/14 em cada matriz; ruff/compileall PASS; smoke de PNCP real PASS: 10 publicações e amostra 8/8 itens de material. Auditoria pt-BR registrada na PR #1; não houve deploy. Limites declarados: importação manual até 20 contratações, até 500 itens por compra, sem análise de participantes, armazenamento local não escalável. Fonte oficial: https://pncp.gov.br/manual/pt-br/latest/contratacao/consultar_itens_de_uma_contratacao.html
 
-## Checkpoint Delta proposto (NÃO promovido)
-Se e somente se auditoria APPROVED: registrar baseline do MVP em desenvolvimento, resultado dos testes e próximos WOs para agendamento, ampliação da coleta, comparação de republicações e deployment com credenciais seguras. Não declarar versão deployada sem comprovação.
+## Checkpoint Delta aprovado para registro
+Auditoria da PR #1: APPROVED para código/testes pré-produção. Registro canônico no Source Pack para baseline do MVP em desenvolvimento, resultados da CI e próximos WOs de agendamento, ampliação da coleta, comparação de republicações e deploy com credenciais seguras. Versão final permanece incompleta até validação de operação e produção.
