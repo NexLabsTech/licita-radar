@@ -28,7 +28,6 @@ from .ai import (
     document_input,
     init_ai,
 )
-
 from .intelligence import CATEGORIES, analyze, validate_quote
 from .pncp import sync_pncp
 from .quotes import get_item, get_quote, get_quotes_for_items, init_quotes, save_quote
