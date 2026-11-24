@@ -112,11 +112,6 @@ def test_logout_and_sync_require_csrf(client):
     assert client.get("/api/items").status_code == 401
 
 
-@pytest.mark.asyncio
-async def _unused():
-    """Não são necessários plugins de pytest async: usar asyncio.run para ingestão."""
-    return None
-
 
 def test_pncp_import_is_idempotent_and_detects_deserts(db_path):
     from asyncio import run
