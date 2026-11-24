@@ -247,3 +247,73 @@ footer strong{color:var(--lime)}
  .glass-panel{background:rgba(21,24,34,.96)}
  .topbar{background:#0b0d15}
 }
+
+
+/* LR-INTEL-WO-004: quote analysis and category classification. */
+.filter-form{grid-template-columns:minmax(200px,2fr) 74px minmax(145px,.95fr) minmax(175px,1fr) auto}
+.link-cell .table-link{display:table;margin-bottom:8px}
+.link-cell .table-link:last-child{margin-bottom:0}
+.quote-link{color:#f6a8d4;border-bottom-color:rgba(255,76,168,.4)}
+.quote-link:hover{color:var(--pink);border-bottom-color:var(--pink)}
+td .category-tag{display:inline-block;color:#c3ff9a;background:rgba(193,255,66,.075);border:1px solid rgba(193,255,66,.15);padding:3px 7px;border-radius:7px}
+.finance-note{font-size:10px;color:var(--muted)}
+.finance-positive{color:var(--lime)}
+.finance-negative{color:#ff9ccc}
+.quote-container{max-width:1230px}
+.quote-top{margin:12px 0 28px}
+.quote-top h1{font-size:clamp(32px,4.5vw,51px);margin-bottom:15px}
+.quote-top>p:last-child{max-width:720px}
+.quote-item{margin-bottom:20px}
+.quote-item .panel-title{align-items:center}
+.quote-item .panel-title h2{max-width:760px;overflow-wrap:anywhere}
+.quote-meta{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.quote-meta>div{border:1px solid var(--line);background:rgba(255,255,255,.025);padding:12px 13px;border-radius:13px;min-width:0}
+.quote-meta span,.quote-results span{display:block;color:#9ca8b5;font-size:11px;margin-bottom:6px}
+.quote-meta strong{font-size:12px;overflow-wrap:anywhere}
+.quote-warning{margin-top:17px;border:1px solid rgba(255,76,168,.25);color:#f8aed3;background:rgba(255,76,168,.065);border-radius:12px;padding:12px 14px;font-size:12px}
+.quote-columns{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+.quote-columns .panel{margin-bottom:20px}
+.quote-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px 12px}
+.quote-form .full{grid-column:1/-1}
+.quote-form .primary-button{justify-content:center}
+.quote-results{border-top:1px solid var(--line);margin-top:20px}
+.quote-results>div{display:flex;align-items:baseline;justify-content:space-between;gap:16px;padding:13px 0;border-bottom:1px solid var(--line)}
+.quote-results>div span{max-width:52%;margin:0}
+.quote-results strong{font-size:15px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.quote-results .primary-result{padding:17px 12px;margin:9px -12px;background:rgba(193,255,66,.065);border:1px solid rgba(193,255,66,.23);border-radius:11px}
+.primary-result strong{color:var(--lime);font-size:20px}
+.quote-results strong.negative{color:var(--pink)}
+.verdict{display:flex;gap:10px;align-items:center;color:var(--lime);font-weight:760;background:rgba(193,255,66,.08);border:1px solid rgba(193,255,66,.2);padding:10px 13px;border-radius:11px}
+.verdict-risk{color:#ff8fc4;background:rgba(255,76,168,.07);border-color:rgba(255,76,168,.24)}
+.verdict-dot{height:8px;width:8px;border-radius:50%;background:currentColor;box-shadow:0 0 12px currentColor}
+.quote-explanation{color:#b6beca;font-size:12px;line-height:1.8;margin:16px 0}
+.quote-disclaimer{font-size:11px;color:#acb6c2;line-height:1.85;padding:12px 0}
+.full-width{display:flex;justify-content:center;width:100%}
+@media(max-width:1100px){
+ .filter-form{grid-template-columns:1fr 68px minmax(135px,.8fr) minmax(150px,.85fr) auto}
+ .quote-meta{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media(max-width:900px){
+ .filter-form{grid-template-columns:minmax(0,1fr) 80px minmax(145px,1fr)}
+ .filter-form select[name="category"]{grid-column:3/4}
+ .filter-form select[name="status"]{grid-column:1/2}
+ .filter-form .filter-button{grid-column:2/-1;font-size:12px}
+ .quote-columns{grid-template-columns:1fr}
+}
+@media(max-width:620px){
+ .filter-form{grid-template-columns:minmax(0,1fr) 82px}
+ .filter-form .search-wrap{grid-column:1/-1}
+ .filter-form input[name="uf"]{grid-column:2/3}
+ .filter-form select[name="status"]{grid-column:1/2}
+ .filter-form select[name="category"]{grid-column:1/-1}
+ .filter-form .filter-button{grid-column:1/-1;font-size:12px}
+ .filter-form .filter-button span{font-size:inherit}
+ .quote-top{padding:0 6px}
+ .quote-meta{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .quote-meta>div{padding:9px}
+ .quote-form{grid-template-columns:1fr 1fr;gap:10px}
+ .quote-form>div{grid-column:1/-1}
+ .quote-results>div{align-items:start;gap:10px}
+ .quote-results strong{font-size:13px}
+ .primary-result strong{font-size:16px}
+}
