@@ -125,7 +125,7 @@ def test_preflight_rejects_permission_and_expenses(tmp_path):
                "admin", "SenhaTesteLocal#2026")
     secret = runtime / "secrets" / "session_secret"
     secret.chmod(0o666)
-    with pytest.raises(ValueError, match="privado"):
+    with pytest.raises(ValueError, match="credencial"):
         preflight(runtime)
     secret.chmod(0o640)
     app_env = runtime / "app.env"
