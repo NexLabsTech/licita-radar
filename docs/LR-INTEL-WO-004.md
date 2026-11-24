@@ -1,6 +1,6 @@
 # LR-INTEL-WO-004 | Categorias, cotações e margem
 
-**Status:** EXECUTING, aguardando CI e auditoria. **Base/head lock:** main 0c4f0abd04fc1169517252f4ec0c9a4cce80be08. **Branch:** feat/lr-intel-wo-004. **Risco:** HIGH_ASSURANCE para cálculos monetários, apesar de não haver transação de dinheiro, assinatura ou lance automático.
+**Status:** APPROVED (incremento de código pré-produção; release/deploy bloqueados). **Base/head lock:** main 0c4f0abd04fc1169517252f4ec0c9a4cce80be08. **Branch:** feat/lr-intel-wo-004. **Risco:** HIGH_ASSURANCE para cálculos monetários, apesar de não haver transação de dinheiro, assinatura ou lance automático.
 
 **OBJECTIVE:** possibilitar análise financeira verificável por item PNCP, usando APENAS preços e custos inseridos pelo proprietário. Categorias automáticas indicativas para agilizar filtros.
 
@@ -16,5 +16,5 @@
 
 **TESTS / PROOF OBLIGATIONS:** pytest (matemática, segurança, persistência e API), oráculo separado em centavos inteiros com 100 cenários determinísticos validando menor centavo viável e monotonicidade, ruff, compileall, node --check e Chromium desktop/mobile com screenshot; smoke PNCP real somente leitura (advisory). Revisão separada e objetiva dos resultados via GitHub CI, mais recuperação a partir da versão anterior via rollback de PR; sem segredos/deploy/migração destrutiva. **DELIVERABLES:** branch+PR, códigos, testes, Evidence Bundle (base/head SHA, CI, riscos), auditoria pt-BR. **REVIEW FORMAT:** APPROVED / CORRECTION REQUIRED / BLOCKED. **STOP CONDITION:** sem WO seguinte, merge ou deploy antes de auditoria deste incremento.
 
-**EVIDENCE BUNDLE:** pendente da execução dos testes e auditoria.
-**CHECKPOINT DELTA (PROPOSTO):** registrar cálculo privado com cotações de origem manual e categoria indicativa; preservar gate de deploy e integração futura DeepSeek.
+**EVIDENCE BUNDLE:** base main 0c4f0abd04fc1169517252f4ec0c9a4cce80be08; head auditado aa22696287a9c6fe46883720cf009794528b35a1; GitHub Actions run 45311161805: **47/47 testes PASS** por versão Python 3.12/3.13, Ruff/compileall/node check PASS, PNCP live smoke PASS (10 publicações, 8 itens de material), Chromium Playwright desktop/mobile PASS em login, dashboard e cotação. Artifact 14882453568 (6 imagens) sha256:fa80cd8a92244fd6749ab8fb07164f4150a3f777038c77e56b9cccad7a6c4524. Riscos: preço do fornecedor manual, tributação parametrizada, sem DeepSeek/deploy, referência não é lance vencedor, uma cotação ativa por item. Correções: lint, verificação de número extremo, redirecionamento nos testes, fechamento SQLite/rollback. Auditoria em pt-BR no comentário PR #4: APPROVED para código, não operação pública.
+**CHECKPOINT DELTA APROVADO PARA REGISTRO:** registrar cálculo privado com cotações de origem manual e categorias indicativas; preservar gates de deploy e integração futura DeepSeek. Não declarar produção validada.
