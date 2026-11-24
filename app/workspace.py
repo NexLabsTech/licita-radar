@@ -233,22 +233,27 @@ def add_task(path: str, tender_id: str, number: int, label: str) -> int:
         return int(cursor.lastrowid)
 
 
-def toggle_task(path: str, task_id: int) -> None:
+def toggle_task(path: str, task_id: int, tender_id: str, number: int) -> None:
+    _validate_ref(tender_id, number)
     if task_id <= 0:
         raise WorkspaceError("Tarefa inválida.")
     with connection(path) as db:
         db.execute("""
             UPDATE opportunity_tasks
             SET done=CASE done WHEN 1 THEN 0 ELSE 1 END, updated_at=?
-            WHERE id=?
-        """, (_time(), task_id))
+            WHERE id=? AND tender_id=? AND numero=?
+        """, (_time(), task_id, tender_id, number))
 
 
-def delete_task(path: str, task_id: int) -> None:
+def delete_task(path: str, task_id: int, tender_id: str, number: int) -> None:
+    _validate_ref(tender_id, number)
     if task_id <= 0:
         raise WorkspaceError("Tarefa inválida.")
     with connection(path) as db:
-        db.execute("DELETE FROM opportunity_tasks WHERE id=?", (task_id,))
+        db.execute(
+            "DELETE FROM opportunity_tasks WHERE id=? AND tender_id=? AND numero=?",
+            (task_id, tender_id, number),
+        )
 
 
 def safe_excel_text(value: object) -> str:
