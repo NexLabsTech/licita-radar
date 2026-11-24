@@ -5,6 +5,7 @@ Backup files contain PRIVATE user quotes and AI reports. Store only in private v
 from __future__ import annotations
 
 import argparse
+from contextlib import closing
 import hashlib
 import os
 import re
@@ -24,7 +25,7 @@ def verify_sqlite(path: Path) -> None:
     if path.is_symlink() or not path.is_file():
         raise ValueError("Arquivo de banco ausente ou não regular.")
     uri = path.resolve().as_uri() + "?mode=ro"
-    with sqlite3.connect(uri, uri=True, timeout=15) as db:
+    with closing(sqlite3.connect(uri, uri=True, timeout=15)) as db:
         result = db.execute("PRAGMA integrity_check").fetchone()
         if result is None or result[0] != "ok":
             raise ValueError("Falha de integridade do banco.")
@@ -69,8 +70,8 @@ def backup_database(
     try:
         os.chmod(temporary, 0o600)
         source_uri = source.resolve().as_uri() + "?mode=ro"
-        with sqlite3.connect(source_uri, uri=True, timeout=20) as read_db:
-            with sqlite3.connect(temporary, timeout=20) as write_db:
+        with closing(sqlite3.connect(source_uri, uri=True, timeout=20)) as read_db:
+            with closing(sqlite3.connect(temporary, timeout=20)) as write_db:
                 read_db.backup(write_db, pages=128, sleep=0.05)
         verify_sqlite(temporary)
         with temporary.open("rb") as handle:
@@ -104,14 +105,10 @@ def restore_to_new_file(backup_path: str | Path, new_path: str | Path) -> Path:
     os.close(descriptor)
     try:
         source_uri = source.resolve().as_uri() + "?mode=ro"
-        with sqlite3.connect(source_uri, uri=True, timeout=20) as read_db:
-            with sqlite3.connect(target, timeout=20) as restored:
+        with closing(sqlite3.connect(source_uri, uri=True, timeout=20)) as read_db:
+            with closing(sqlite3.connect(target, timeout=20)) as restored:
                 read_db.backup(restored)
         verify_sqlite(target)
-        if file_sha256(source) != file_sha256(target):
-            # Cópia via API SQLite pode ser byte-diferente por metadados; dados precisam
-            # permanecer íntegros, mas não exigir hash binário idêntico neste método.
-            pass
         return target
     except BaseException:
         target.unlink(missing_ok=True)
