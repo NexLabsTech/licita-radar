@@ -107,6 +107,9 @@
     );
     monitorLink.href = "/monitor?" + query.toString();
     source.append(monitorLink);
+    const workspaceLink = node("a", "table-link workspace-link", "Planejar oportunidade ↗");
+    workspaceLink.href = "/workspace?" + query.toString();
+    source.append(workspaceLink);
     row.append(description, location, amount, state, source);
     return row;
   }
