@@ -191,6 +191,7 @@
               <a class="table-link" href="{{ item.link }}" target="_blank" rel="noopener noreferrer">Ver edital ↗</a>
               <a class="table-link quote-link" href="/quote?tender_id={{ item.tender_id|urlencode }}&numero={{ item.numero }}">Custo e margem ↗</a>
               <a class="table-link ai-link" href="/ai?tender_id={{ item.tender_id|urlencode }}&numero={{ item.numero }}">Analisar com IA ✦</a>
+              <a class="table-link result-link" href="/results?tender_id={{ item.tender_id|urlencode }}&numero={{ item.numero }}">Resultados PNCP ↗</a>
               <a class="table-link monitor-item-link" href="/monitor?tender_id={{ item.tender_id|urlencode }}&numero={{ item.numero }}">{{ "★ Acompanhando" if item.watched else "☆ Acompanhar" }}</a>
             </td>
           </tr>
