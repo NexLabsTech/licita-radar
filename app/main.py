@@ -34,10 +34,10 @@ from .quotes import get_item, get_quote, get_quotes_for_items, init_quotes, save
 from .scheduler import periodic_scan_loop
 from .security import (
     SESSION_SECONDS,
-    valid_password_hash,
     make_session,
     new_login_csrf,
     read_session,
+    valid_password_hash,
     verify_login_csrf,
     verify_password,
 )
@@ -60,7 +60,7 @@ def _server_secret(name: str) -> str:
         if source.is_symlink() or not source.is_file() or source.stat().st_size > 8192:
             raise OSError("invalid")
         return source.read_text(encoding="utf-8").rstrip("\r\n")
-    except (OSError, UnicodeError) as exc:
+    except (OSError, UnicodeError):
         raise RuntimeError("Arquivo de segredo obrigatório indisponível.") from None
 
 
@@ -110,9 +110,10 @@ class Settings:
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings.from_env()
-    if os.getenv("APP_ENV") == "production":
-        if not settings.secure_cookies or not settings.configured:
-            raise RuntimeError("Produção exige login válido e cookie seguro.")
+    if os.getenv("APP_ENV") == "production" and (
+        not settings.secure_cookies or not settings.configured
+    ):
+        raise RuntimeError("Produção exige login válido e cookie seguro.")
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         worker = None
