@@ -94,7 +94,7 @@
           <select id="rule_category" name="category">
             <option value="">Todas as categorias</option>
             {% for code, data in categories.items() %}
-            <option value="{{ code }}">{{ data.label if data.label is defined else code }}</option>
+            <option value="{{ code }}">{{ data }}</option>
             {% endfor %}
           </select>
           <button class="primary-button full-width" type="submit">Criar regra <span aria-hidden="true">✦</span></button>
