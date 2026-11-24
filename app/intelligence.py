@@ -2,10 +2,10 @@
 import hashlib
 import re
 import unicodedata
-from decimal import Decimal, InvalidOperation, ROUND_CEILING, ROUND_HALF_UP
+from decimal import ROUND_CEILING, ROUND_HALF_UP, Decimal, InvalidOperation
 
 CENT = Decimal("0.01")
-HUNDRED = Decimal("100")
+HUNDRED = Decimal(100)
 MAX_MONEY = Decimal("100000000.00")
 
 # Categorias são heurísticas, não uma prova de facilidade de fornecimento.
@@ -72,7 +72,7 @@ def validate_quote(data: dict) -> dict[str, str]:
         amounts[key] = decimal_field(
             data.get(key), key, maximum=maximum, positive=(key == "unit_cost")
         )
-    if amounts["tax_percent"] >= Decimal("100") or amounts["target_margin"] >= Decimal("100"):
+    if amounts["tax_percent"] >= Decimal(100) or amounts["target_margin"] >= Decimal(100):
         raise ValueError("As taxas devem ser menores que 100%.")
     if amounts["tax_percent"] + amounts["target_margin"] >= HUNDRED:
         raise ValueError("Soma dos tributos e margem desejada precisa ser menor que 100%.")
@@ -101,7 +101,7 @@ def analyze(item: dict, quote: dict | None) -> dict:
 
     try:
         qty = Decimal(str(item.get("quantidade")))
-        if not qty.is_finite() or qty <= 0 or qty > Decimal("100000000"):
+        if not qty.is_finite() or qty <= 0 or qty > Decimal(100000000):
             raise InvalidOperation()
         unit = Decimal(str(quote["unit_cost"]))
         freight = Decimal(str(quote["freight"]))
