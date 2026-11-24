@@ -7,9 +7,9 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from app.ai import init_ai
 from app.main import Settings, create_app
 from app.quotes import get_quote, init_quotes, save_quote
-from app.ai import init_ai
 from app.security import hash_password
 from app.storage import init_db, upsert_tender
 from scripts.ops_backup import (
