@@ -3,7 +3,6 @@ import asyncio
 import io
 import json
 import re
-from datetime import date
 
 import httpx
 import pytest
@@ -12,14 +11,22 @@ from pypdf import PdfWriter
 from pypdf.generic import DecodedStreamObject, DictionaryObject, NameObject
 
 from app.ai import (
-    AIConfig, AIError, analyze_opportunity, calls_today, document_input, extract_pdf,
-    get_cached, init_ai, reserve_call, run_model, validate_model_output,
+    AIConfig,
+    AIError,
+    analyze_opportunity,
+    calls_today,
+    document_input,
+    extract_pdf,
+    get_cached,
+    init_ai,
+    run_model,
+    validate_model_output,
 )
+from app.intelligence import validate_quote
 from app.main import Settings, create_app
 from app.quotes import get_item, get_quote, init_quotes, save_quote
 from app.security import hash_password
 from app.storage import init_db, upsert_tender
-from app.intelligence import validate_quote
 
 
 def tender():
