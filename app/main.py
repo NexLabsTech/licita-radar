@@ -8,14 +8,23 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from fastapi import FastAPI, Query, Request
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
+from fastapi.responses import (
+    HTMLResponse,
+    JSONResponse,
+    PlainTextResponse,
+    RedirectResponse,
+)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from .pncp import sync_pncp
 from .security import (
-    SESSION_SECONDS, make_session, new_login_csrf, read_session,
-    verify_login_csrf, verify_password,
+    SESSION_SECONDS,
+    make_session,
+    new_login_csrf,
+    read_session,
+    verify_login_csrf,
+    verify_password,
 )
 from .storage import STATUSES, init_db, list_items
 
