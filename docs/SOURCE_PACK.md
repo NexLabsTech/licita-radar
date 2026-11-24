@@ -1,4 +1,4 @@
-# LicitaRadar | Source Pack v0.9
+# LicitaRadar | Source Pack v0.10
 
 ## Source hierarchy
 Source Check do GitHub (HEAD + arquivos existentes) > este Checkpoint > Decisions Ledger/ADRs > Scope > Definition of Done > Architecture > Requirements > evidências; Git/código/testes prevalecem sobre lembranças da conversa. Este documento é propositalmente compacto.
@@ -19,6 +19,8 @@ R9 Pacote de deploy auto-hospedado, sem criar custos: HTTPS proxy, app sem porta
 R10 Monitor local: favoritos, regras de UF/status/categoria/palavra, alertas deduplicados no banco e candidatos conservadores de republicação, sempre apresentados como hipótese não comprovada.
 R11 Resultados oficiais do PNCP consultados manualmente: quantidade e valor unitário homologados, situação, fornecedor PJ sem identificadores pessoais; snapshots persistentes com prova da fonte. Não inferir participantes de uma lista de resultados.
 R12 Coleta progressiva por até 7 dias, UF/modalidade e município IBGE opcional; cursor persistente, lotes limitados, erro explícito e noção de cobertura parcial/concluída conforme API, sem alegar abrangência nacional.
+
+R13 Workspace privado de oportunidades com etapa/prioridade manual, notas, prazo, checklist, histórico de mudanças e exportação CSV segura, separado do estado PNCP.
 
 ## Scope
 MVP NECESSARY: auth, ingestão manual e periódica limitadas, base SQLite, dashboard neon glass acessível, atualização local, filtros por categoria, cotações privadas manuais, cálculo determinístico de margem, assistente IA opcional de riscos/documentos/margens com consentimento, histórico, links oficiais, testes e CI. IMPORTANT (próximos WOs): validação real da operação na VPS (OPS preparado em PR #6), ampliação da cobertura, identificação comprovável de republicações, fontes adicionais e alertas. FUTURE: SaaS multi-tenant. OUT OF SCOPE: lances automáticos, scraping autenticado, informações privadas de participantes, cadastro público.
@@ -44,7 +46,8 @@ LR-INTEL-WO-004: categorias, cotações manuais e cálculo determinístico (PR #
 LR-AI-WO-005: DeepSeek/OpenRouter opcional, análise de riscos/documentos e limites de custo (PR #5 integrada na main, squash 6a9f4dea86b1ddd114155c6b5185765e156a724b).
 LR-INT-WO-001: monitor local de favoritos/regras/alertas e candidatos de republicação (PR #7 merged, squash 82d7b397f0a89b1f525bd142146b224f32750052).
 LR-DATA-WO-002: resultados oficiais por item PNCP sem inferir concorrentes (PR #8 merged, squash 90bc1dd160c97191934d6e1810444fa2e2ad3088).
-LR-COVER-WO-003: coleta por região/IBGE com cursor paginado e retomável (PR #9 aprovada para código, merge em curso).
+LR-COVER-WO-003: coleta por região/IBGE com cursor paginado e retomável (PR #9 merged, squash 430897aa4af8e83e8ca4a56e97997e0caf087cbd).
+LR-FLOW-WO-004: workspace privado de etapas/notas/prazos/checklist e CSV seguro (PR #10 aprovada para código, merge pendente).
 Próximos módulos de código: fluxo operacional de oportunidades, cotações de múltiplos fornecedores com fonte comprovável, exportação/histórico; depois hardening/revisão final de DoD. Hospedagem adiada por decisão do usuário.
 
 ## Definition of Done
@@ -63,6 +66,8 @@ ADR-009 APPROVED (2026-11-24): regras/alertas locais deduplicados e favoritos pr
 ADR-010 APPROVED (2026-11-24): resultados por item na API oficial PNCP são observações homologadas e não participantes; endpoint de consulta explícita com cooldown/limites, nomes PJ somente (sem CPF/CNPJ pessoal), armazenamento e matemática Decimal sem arredondamento inventado.
 ADR-011 APPROVED (2026-11-24): varredura PNCP avançada apenas sob comando explícito, lotes de 2 x 20, cursor SQLite, IBGE opcional, conclusão somente com prova da última página e sem mudar o coletor automático atual.
 
+ADR-012 APPROVED (2026-11-24): pipeline de participação exclusivamente manual; etapas 'inscrito', 'ganho' e 'perdido' NÃO comprovam ação na plataforma de licitação; notas privadas não enviadas à IA e CSV neutraliza fórmulas.
+
 ## Checkpoint
 2026-11-23: LR-MVP-WO-001 aprovado como **incremento de código pré-produção** após revisão da PR #1; baseline 85bacf56e4782fb6e1c10f8fd284e2ca0222408c; GitHub Actions run 45304898676: Python 3.12/3.13, 14/14 testes por matriz, lint/compileall PASS; smoke PNCP real PASS (10 publicações, 8 itens de material na amostra). Deploy, operação agendada e versão completa NÃO validados. PR #1 squash merge confirmado em `6c7692f0ada168cfda1514ed7c7629ba05a4c2c6`.
 2026-11-23: LR-MVP-WO-002 aprovado como **código pré-produção**, PR #2, base `6c7692f0...`; CI run `45305787417`: Python 3.12/3.13, **18/18 testes em cada matriz**, Ruff/sintaxe PASS e smoke real PNCP PASS. Histórico de transições e coletor periódico implementados; sem credenciais, deploy ou validação operacional contínua. Próxima etapa somente depois de merge confirmado.
@@ -80,3 +85,5 @@ ADR-011 APPROVED (2026-11-24): varredura PNCP avançada apenas sob comando expl�
 2026-11-24: LR-DATA-WO-002 APPROVED para código pré-produção na PR #8, base 82d7b397f0a89b1f525bd142146b224f32750052, head auditado 52d1fed320437c7fcea1da71e8245175d3a87dcd; CI #45366354177, **140/140 testes por versão Python 3.12/3.13**, 4 jobs sucesso, PNCP live smoke (publicações) + Chromium desktop/mobile + Docker backup. Consulta de resultados PNCP somente sob demanda; 200 vazio, erros e cancelados tratados; nenhuma inferência do número de participantes. API real de resultados para item particular, preços do mercado e deploy não validados.
 
 2026-11-24: LR-COVER-WO-003 APPROVED para código pré-produção na PR #9, base 90bc1dd160c97191934d6e1810444fa2e2ad3088, head auditado 1ca5e8a90e849790ca83e24855379305e18bbf75; Actions #45368094055: **163/163 pytest por Python 3.12/3.13, 4 jobs PASS**, smoke PNCP publicações, Docker backup/restart, Chromium desktop/mobile, screenshot artifact #14908480562. Em /coverage, até 40 publicações por clique, filtros UF/IBGE/modality, estado parcial/erro/concluído e cursores persistentes; sem deploy, cobertura exaustiva nacional ou egress de múltiplas páginas reais validado.
+
+2026-11-24: LR-FLOW-WO-004 APPROVED para código pré-produção na PR #10; base 430897aa4af8e83e8ca4a56e97997e0caf087cbd, head auditado 54a72f2069bddc24eeeed8c06cec5bab8b944df6. GitHub Actions #45369703934: 4/4 jobs SUCCESS, **179/179 pytest por matriz Python 3.12/3.13**, Ruff/JS, PNCP smoke, Docker+backup e Chromium desktop/mobile. Workspace de etapas manuais, notas, prazo, checklist e CSV privado protegido; não houve inscrição real, cotação de fornecedor automática nem deploy.
