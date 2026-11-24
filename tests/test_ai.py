@@ -383,3 +383,60 @@ def test_status_does_not_expose_key_to_unconfigured_app(client):
     response = client.get("/ai?tender_id=12345678000190-1-000007%2F2026&numero=1")
     assert response.headers["cache-control"] == "no-store"
     assert "Chave:" not in response.text
+
+
+def test_documentary_citations_must_be_literal_source_excerpts():
+    good = {**valid_output(), "evidencias_documentais": [
+        "Prazo de entrega em 15 dias",
+    ]}
+    parsed = validate_model_output(
+        good, True, "[Página 1 do PDF fornecido]\nPrazo de entrega em 15 dias"
+    )
+    assert parsed["evidencias_documentais"] == ["Prazo de entrega em 15 dias"]
+    bad = {**valid_output(), "evidencias_documentais": [
+        "Exige garantia de 10 anos",  # não aparece no PDF!
+    ]}
+    with pytest.raises(AIError, match="não encontrado"):
+        validate_model_output(
+            bad, True, "Prazo de entrega em 15 dias",
+        )
+
+
+def test_ai_pdf_form_submission_extracts_text_without_storing_file(db_path, monkeypatch):
+    import app.ai as provider
+
+    seen = []
+    async def mocked(cfg, context, **kwargs):
+        seen.append(context)
+        return valid_output()
+
+    monkeypatch.setattr(provider, "run_model", mocked)
+    settings = Settings(
+        username="owner", password_hash=hash_password(
+            "TestPasswordSecure#2026", b"1234567890abcdef"),
+        session_secret="secret" * 10, db_path=db_path,
+        secure_cookies=False, ai=AIConfig(enabled=True, key="DUMMY-NOT-REAL"),
+    )
+    with TestClient(create_app(settings)) as web:
+        login(web)
+        ai_url = "/ai?tender_id=12345678000190-1-000007%2F2026&numero=1"
+        token = csrf(web, ai_url)
+        data = {
+            "csrf": token, "tender_id": tender()["id"],
+            "numero": "1", "consent": "yes",
+        }
+        response = web.post("/ai", data=data, files={
+            "document_pdf": ("edital.pdf", pdf_with_text(), "application/pdf"),
+        })
+        assert response.status_code == 200
+        assert len(seen) == 1
+        assert "Prazo de entrega em 15 dias" in seen[0]["documento"]["trecho"]
+        assert "PDF" in response.text
+        assert b"%PDF-" not in response.content
+        assert get_cached(db_path, "invalid") is None
+        invalid = web.post("/ai", data=data, files={
+            "document_pdf": ("bad.pdf", b"fake", "application/pdf"),
+        })
+        assert invalid.status_code == 422
+        # A falha de validação não dispara nova chamada faturável.
+        assert calls_today(db_path) == 1
