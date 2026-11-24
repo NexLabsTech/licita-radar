@@ -268,14 +268,13 @@ def test_sqlite_connection_is_closed_and_failed_writes_are_rolled_back(db_path):
         initial = database.execute("SELECT COUNT(*) FROM sync_runs").fetchone()[0]
     with pytest.raises(sqlite3.ProgrammingError):
         database.execute("SELECT 1")
-    with pytest.raises(RuntimeError):
-        with connection(db_path) as database:
-            database.execute("""
-                INSERT INTO sync_runs
-                (started_at,fetched,material_items,errors,details)
-                VALUES ('2026-11-23',1,1,0,'synthetic')
-            """)
-            raise RuntimeError("simular falha após alteração")
+    with pytest.raises(RuntimeError), connection(db_path) as database:
+        database.execute("""
+            INSERT INTO sync_runs
+            (started_at,fetched,material_items,errors,details)
+            VALUES ('2026-11-23',1,1,0,'synthetic')
+        """)
+        raise RuntimeError("simular falha após alteração")
     with connection(db_path) as database:
         final = database.execute("SELECT COUNT(*) FROM sync_runs").fetchone()[0]
     assert final == initial
