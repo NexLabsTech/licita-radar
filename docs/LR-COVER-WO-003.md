@@ -1,6 +1,6 @@
 # LR-COVER-WO-003 | Coleta PNCP paginada, retomável, com filtro municipal
 
-**Status:** EXECUTING; gate de deploy/VPS mantido fora desta versão de código. **Risco:** STANDARD, ingestão pública e persistência de progresso. **Base/Context Lock:** main \`90bc1dd160c97191934d6e1810444fa2e2ad3088\` (Source Check \`identical\`), Source Pack v0.8 blob \`a7894e951a09ba46b734996f04af1e4df54d6027\`, \`app/pncp.py\` blob \`388c3ad711118a4bcd7a7221cf9c927c926fe422\`, \`app/main.py\` blob \`362d7a32486083bb160a1deeb9943ef73466bb49\`. Histórico priorizado e sem outras mudanças.
+**Status:** APPROVED para código pré-produção, merge pendente; gate de deploy/VPS mantido fora desta versão de código. **Risco:** STANDARD, ingestão pública e persistência de progresso. **Base/Context Lock:** main \`90bc1dd160c97191934d6e1810444fa2e2ad3088\` (Source Check \`identical\`), Source Pack v0.8 blob \`a7894e951a09ba46b734996f04af1e4df54d6027\`, \`app/pncp.py\` blob \`388c3ad711118a4bcd7a7221cf9c927c926fe422\`, \`app/main.py\` blob \`362d7a32486083bb160a1deeb9943ef73466bb49\`. Histórico priorizado e sem outras mudanças.
 
 **OBJECTIVE:** ampliar a cobertura de publicações oficiais PNCP sem perder evidência de incompletude, permitindo usuário iniciar e continuar lotes paginados com filtro opcional por município IBGE.
 
