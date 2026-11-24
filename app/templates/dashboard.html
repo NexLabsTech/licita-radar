@@ -21,7 +21,7 @@
     <div class="stat"><small>Em andamento</small><strong class="cyan">{{ counts.get(1,0) }}</strong><span>Situação declarada pelo PNCP</span></div>
   </section>
   <section class="panel sync-panel">
-    <div class="panel-title"><div><h2>Atualizar radar</h2><p class="muted">Consultar período de até 7 dias. A coleta é manual e limitada a 20 compras por execução.</p></div></div>
+    <div class="panel-title"><div><h2>Atualizar radar</h2><p class="muted">Consulta manual de até 7 dias e 20 publicações por execução. Varredura automática: {% if auto_scan %}<strong>ligada, a cada {{ scan_interval }} min ({{ scan_uf }})</strong>{% else %}<strong>desligada</strong>{% endif %}. Depende do servidor ligado.</p></div></div>
     <form class="sync-form" method="post" action="/sync">
       <input type="hidden" name="csrf" value="{{ csrf }}">
       <div><label for="start">Publicação de</label><input id="start" type="date" name="start" value="{{ start }}" required></div>
@@ -39,6 +39,28 @@
     {% else %}
     <p class="sync-result">Nenhuma coleta realizada. O painel começa vazio, sem números fictícios.</p>
     {% endif %}
+  </section>
+
+  <section class="panel">
+    <div class="panel-title"><div><h2>Mudanças observadas <span class="count">{{ events|length }}</span></h2>
+      <p class="muted">Somente alterações detectadas nas coletas deste banco. Uma nova ocorrência não significa edital reaberto.</p></div></div>
+    {% for event in events %}
+    <div class="event-row">
+      <div><strong>{{ event.descricao }}</strong>
+        <small>{{ event.municipio }} / {{ event.uf }} · Item {{ event.numero }} · {{ event.changed_at[:19] }} UTC</small>
+      </div>
+      <div class="event-badges">
+        {% if event.previous_status is not none %}
+          <span class="status s{{ event.previous_status }}">{{ statuses.get(event.previous_status, "Desconhecido") }}</span>
+          <span class="muted">→</span>
+        {% else %}<span class="muted">Novo registro →</span>{% endif %}
+        <span class="status s{{ event.current_status }}">{{ statuses.get(event.current_status, "Desconhecido") }}</span>
+        <a href="{{ event.link }}" target="_blank" rel="noopener noreferrer">PNCP ↗</a>
+      </div>
+    </div>
+    {% else %}
+    <p class="muted">Nenhuma mudança registrada ainda. As primeiras importações de itens desertos ou fracassados aparecerão aqui.</p>
+    {% endfor %}
   </section>
   <section class="panel" aria-label="Busca de itens">
     <div class="panel-title"><div><h2>Itens identificados <span class="count">{{ total }}</span></h2>
