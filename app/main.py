@@ -3,6 +3,7 @@ import asyncio
 import hmac
 import os
 import time
+from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass
 from datetime import date, timedelta
 from pathlib import Path
@@ -18,6 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from .pncp import sync_pncp
+from .scheduler import periodic_scan_loop
 from .security import (
     SESSION_SECONDS,
     make_session,
@@ -26,7 +28,7 @@ from .security import (
     verify_login_csrf,
     verify_password,
 )
-from .storage import STATUSES, init_db, list_items
+from .storage import STATUSES, init_db, list_items, recent_events
 
 ROOT = Path(__file__).resolve().parent
 templates = Jinja2Templates(directory=str(ROOT / "templates"))
@@ -39,6 +41,9 @@ class Settings:
     session_secret: str = ""
     db_path: str = "data/licitaradar.db"
     secure_cookies: bool = True
+    auto_scan: bool = False
+    scan_interval_minutes: int = 360
+    scan_uf: str = "SP"
 
     @classmethod
     def from_env(cls):
@@ -50,6 +55,9 @@ class Settings:
             session_secret=os.getenv("SESSION_SECRET", ""),
             db_path=os.getenv("DB_PATH", "data/licitaradar.db"),
             secure_cookies=os.getenv("COOKIE_SECURE", "1") == "1",
+            auto_scan=os.getenv("AUTO_SCAN_ENABLED", "0") == "1",
+            scan_interval_minutes=int(os.getenv("AUTO_SCAN_INTERVAL_MINUTES", "360")),
+            scan_uf=os.getenv("AUTO_SCAN_UF", "SP").strip().upper(),
         )
 
     @property
@@ -64,7 +72,30 @@ class Settings:
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or Settings.from_env()
-    app = FastAPI(title="LicitaRadar", docs_url=None, redoc_url=None, openapi_url=None)
+    @asynccontextmanager
+    async def lifespan(_app: FastAPI):
+        worker = None
+        if settings.configured and settings.auto_scan:
+            if not 30 <= settings.scan_interval_minutes <= 1440:
+                raise RuntimeError("Intervalo automático permitido: 30 a 1440 minutos.")
+            if len(settings.scan_uf) != 2 or not settings.scan_uf.isascii() or not settings.scan_uf.isalpha():
+                raise RuntimeError("AUTO_SCAN_UF inválida.")
+            worker = asyncio.create_task(periodic_scan_loop(
+                settings.db_path, settings.scan_uf, settings.scan_interval_minutes,
+                _app.state.lock,
+            ))
+        try:
+            yield
+        finally:
+            if worker:
+                worker.cancel()
+                with suppress(asyncio.CancelledError):
+                    await worker
+
+    app = FastAPI(
+        title="LicitaRadar", docs_url=None, redoc_url=None,
+        openapi_url=None, lifespan=lifespan,
+    )
     app.mount("/static", StaticFiles(directory=str(ROOT / "static")), name="static")
     app.state.settings = settings
     app.state.lock = asyncio.Lock()
@@ -180,7 +211,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         return no_cache(templates.TemplateResponse(request, "dashboard.html", {
             "records": records, "total": total, "counts": counts, "last_sync": last_sync,
             "statuses": STATUSES, "csrf": csrf, "q": q, "uf": uf,
-            "status": status, "page": page, "start": start.isoformat(),
+            "status": status, "page": page,
+            "events": recent_events(settings.db_path, 10),
+            "auto_scan": settings.auto_scan,
+            "scan_interval": settings.scan_interval_minutes,
+            "scan_uf": settings.scan_uf,
+            "start": start.isoformat(),
             "end": end.isoformat(),
         }))
 
@@ -202,6 +238,13 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "counts": counts, "last_sync": latest,
             "participant_count": None, "participant_count_source": "não disponível",
         }))
+
+    @app.get("/api/changes")
+    async def changes_api(request: Request):
+        csrf = guard(request, json=True)
+        if not isinstance(csrf, str):
+            return csrf
+        return no_cache(JSONResponse({"data": recent_events(settings.db_path, 100)}))
 
     @app.post("/sync")
     async def synchronize(request: Request):

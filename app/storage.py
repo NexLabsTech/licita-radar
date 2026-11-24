@@ -46,6 +46,16 @@ def init_db(path: str):
         );
         CREATE INDEX IF NOT EXISTS idx_items_status ON items(status);
         CREATE INDEX IF NOT EXISTS idx_tenders_uf ON tenders(uf);
+        CREATE TABLE IF NOT EXISTS item_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tender_id TEXT NOT NULL REFERENCES tenders(id) ON DELETE CASCADE,
+            numero INTEGER NOT NULL,
+            descricao TEXT NOT NULL,
+            previous_status INTEGER,
+            current_status INTEGER NOT NULL,
+            changed_at TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_item_events_recent ON item_events(id DESC);
         CREATE TABLE IF NOT EXISTS sync_runs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             started_at TEXT NOT NULL,
@@ -74,11 +84,26 @@ def upsert_tender(path: str, tender: dict, items: list[dict]) -> int:
             abertura=excluded.abertura, encerramento=excluded.encerramento,
             link=excluded.link, atualizado_em=excluded.atualizado_em
         """, {**tender, "atualizado_em": stamp})
+        previous = {
+            row["numero"]: row["status"]
+            for row in db.execute(
+                "SELECT numero,status FROM items WHERE tender_id = ?", (tender["id"],))
+        }
         db.execute("DELETE FROM items WHERE tender_id = ?", (tender["id"],))
         for item in valid:
             status = int(item.get("situacaoCompraItemId") or 0)
             if status not in STATUSES:
                 status = 0
+            old_status = previous.get(int(item["numeroItem"]))
+            if old_status != status and (old_status is not None or status in (4, 5)):
+                db.execute("""
+                    INSERT INTO item_events
+                    (tender_id,numero,descricao,previous_status,current_status,changed_at)
+                    VALUES (?,?,?,?,?,?)
+                """, (
+                    tender["id"], int(item["numeroItem"]),
+                    str(item.get("descricao") or ""), old_status, status, stamp
+                ))
             confidential = item.get("orcamentoSigiloso") is True
             db.execute("""
             INSERT INTO items
@@ -124,3 +149,14 @@ def record_sync(path: str, fetched: int, material_items: int, errors: int, detai
         db.execute(
             "INSERT INTO sync_runs(started_at,fetched,material_items,errors,details) VALUES (?,?,?,?,?)",
             (datetime.now(UTC).isoformat(), fetched, material_items, errors, details[:500]))
+
+
+def recent_events(path: str, limit: int = 15) -> list[dict]:
+    """Somente transições registradas de itens; eventos não são provas de republicação."""
+    with connection(path) as db:
+        rows = db.execute("""
+            SELECT e.*, t.orgao, t.municipio, t.uf, t.link
+            FROM item_events e JOIN tenders t ON t.id=e.tender_id
+            ORDER BY e.id DESC LIMIT ?
+        """, (max(1, min(100, limit)),)).fetchall()
+    return [dict(row) for row in rows]
