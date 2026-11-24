@@ -18,7 +18,9 @@ from fastapi.responses import (
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
+from .intelligence import CATEGORIES, analyze, validate_quote
 from .pncp import sync_pncp
+from .quotes import get_item, get_quote, get_quotes_for_items, init_quotes, save_quote
 from .scheduler import periodic_scan_loop
 from .security import (
     SESSION_SECONDS,
@@ -102,6 +104,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.failed_attempts: dict[str, list[float]] = {}
     if settings.configured:
         init_db(settings.db_path)
+        init_quotes(settings.db_path)
 
     def session_csrf(request: Request) -> str | None:
         if not settings.configured:
@@ -197,21 +200,31 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def dashboard(request: Request, q: str = Query("", max_length=120),
                         uf: str = Query("", max_length=2),
                         status: int = Query(0, ge=0, le=5),
-                        page: int = Query(1, ge=1, le=10000)):
+                        page: int = Query(1, ge=1, le=10000),
+                        category: str = Query("", max_length=30)):
         csrf = guard(request)
         if not isinstance(csrf, str):
             return csrf
         uf = uf.strip().upper()
         if uf and (len(uf) != 2 or not uf.isalpha()):
             return no_cache(PlainTextResponse("UF inválida.", status_code=422))
+        if category and category not in CATEGORIES:
+            return no_cache(PlainTextResponse("Categoria inválida.", status_code=422))
         records, total, counts, last_sync = list_items(
-            settings.db_path, q=q.strip(), uf=uf, status=status, page=page)
+            settings.db_path, q=q.strip(), uf=uf, status=status, page=page,
+            category=category)
+        quote_map = get_quotes_for_items(settings.db_path, records)
+        for record in records:
+            record["analysis"] = analyze(
+                record, quote_map.get((record["tender_id"], record["numero"]))
+            )
         end = date.today()
         start = end - timedelta(days=1)
         return no_cache(templates.TemplateResponse(request, "dashboard.html", {
             "records": records, "total": total, "counts": counts, "last_sync": last_sync,
             "statuses": STATUSES, "csrf": csrf, "q": q, "uf": uf,
-            "status": status, "page": page,
+            "status": status, "page": page, "category": category,
+            "categories": CATEGORIES,
             "events": recent_events(settings.db_path, 10),
             "auto_scan": settings.auto_scan,
             "scan_interval": settings.scan_interval_minutes,
@@ -224,15 +237,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def items_api(request: Request, q: str = Query("", max_length=120),
                         uf: str = Query("", max_length=2),
                         status: int = Query(0, ge=0, le=5),
-                        page: int = Query(1, ge=1, le=10000)):
+                        page: int = Query(1, ge=1, le=10000),
+                        category: str = Query("", max_length=30)):
         csrf = guard(request, json=True)
         if not isinstance(csrf, str):
             return csrf
         uf = uf.strip().upper()
         if uf and (len(uf) != 2 or not uf.isalpha()):
             return JSONResponse({"error": "UF inválida."}, status_code=422)
+        if category and category not in CATEGORIES:
+            return no_cache(JSONResponse({"error": "Categoria inválida."}, status_code=422))
         rows, total, counts, latest = list_items(
-            settings.db_path, q=q.strip(), uf=uf, status=status, page=page)
+            settings.db_path, q=q.strip(), uf=uf, status=status, page=page,
+            category=category)
+        quote_map = get_quotes_for_items(settings.db_path, rows)
+        for row in rows:
+            row["analysis"] = analyze(
+                row, quote_map.get((row["tender_id"], row["numero"]))
+            )
         return no_cache(JSONResponse({
             "data": rows, "total": total, "page": page,
             "counts": counts, "last_sync": latest,
@@ -245,6 +267,67 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         if not isinstance(csrf, str):
             return csrf
         return no_cache(JSONResponse({"data": recent_events(settings.db_path, 100)}))
+
+
+    @app.get("/quote", response_class=HTMLResponse)
+    async def quote_page(
+        request: Request,
+        tender_id: str = Query(..., min_length=1, max_length=180),
+        numero: int = Query(..., ge=1, le=100000),
+    ):
+        csrf = guard(request)
+        if not isinstance(csrf, str):
+            return csrf
+        item = get_item(settings.db_path, tender_id, numero)
+        if item is None:
+            return no_cache(PlainTextResponse("Item não encontrado.", status_code=404))
+        quote = get_quote(settings.db_path, tender_id, numero)
+        form = quote or {
+            "supplier": "", "unit_cost": "", "freight": "0.00",
+            "packaging": "0.00", "other": "0.00", "risk_reserve": "0.00",
+            "tax_percent": "0.00", "target_margin": "15.00",
+        }
+        return no_cache(templates.TemplateResponse(request, "quote.html", {
+            "csrf": csrf, "item": item, "form": form, "error": None,
+            "analysis": analyze(item, quote),
+        }))
+
+    @app.post("/quote", response_class=HTMLResponse)
+    async def quote_submit(request: Request):
+        csrf = guard(request)
+        if not isinstance(csrf, str):
+            return csrf
+        form_data = await request.form()
+        if not check_csrf(csrf, str(form_data.get("csrf") or "")):
+            return no_cache(PlainTextResponse("Token de segurança inválido.", status_code=403))
+        tender_id = str(form_data.get("tender_id") or "")
+        try:
+            numero = int(str(form_data.get("numero") or "0"))
+        except ValueError:
+            return no_cache(PlainTextResponse("Item inválido.", status_code=422))
+        if not 1 <= len(tender_id) <= 180 or not 1 <= numero <= 100000:
+            return no_cache(PlainTextResponse("Item inválido.", status_code=422))
+        item = get_item(settings.db_path, tender_id, numero)
+        if item is None:
+            return no_cache(PlainTextResponse("Item não encontrado.", status_code=404))
+        fields = ("supplier", "unit_cost", "freight", "packaging", "other",
+                  "risk_reserve", "tax_percent", "target_margin")
+        entered = {key: str(form_data.get(key) or "") for key in fields}
+        try:
+            values = validate_quote(entered)
+            save_quote(settings.db_path, tender_id, numero, values)
+        except ValueError as exc:
+            return no_cache(templates.TemplateResponse(
+                request, "quote.html", {
+                    "csrf": csrf, "item": item, "form": entered,
+                    "error": str(exc), "analysis": analyze(
+                        item, get_quote(settings.db_path, tender_id, numero)),
+                }, status_code=422
+            ))
+        from urllib.parse import urlencode
+
+        target = urlencode({"tender_id": tender_id, "numero": numero})
+        return no_cache(RedirectResponse("/quote?" + target, status_code=303))
 
     @app.post("/sync")
     async def synchronize(request: Request):
