@@ -176,7 +176,8 @@ def test_authenticated_quote_route_and_post_csrf(client, db_path):
     path = "/quote?tender_id=" + tender_id.replace("/", "%2F") + "&numero=1"
     assert client.get(path, follow_redirects=False).status_code == 303
     assert client.get("/api/items").status_code == 401
-    assert client.post("/quote", data={"tender_id": tender_id, "numero": "1"}).status_code == 303
+    assert client.post("/quote", data={"tender_id": tender_id, "numero": "1"},
+                       follow_redirects=False).status_code == 303
     login(client)
     assert client.get(path).status_code == 200
     assert client.get("/quote?tender_id=unknown&numero=1").status_code == 404
