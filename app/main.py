@@ -14,6 +14,7 @@ from fastapi.responses import (
     JSONResponse,
     PlainTextResponse,
     RedirectResponse,
+    Response,
 )
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -64,6 +65,21 @@ from .security import (
     valid_password_hash,
     verify_login_csrf,
     verify_password,
+)
+from .workspace import (
+    PRIORITIES,
+    STAGES,
+    WorkspaceError,
+    add_task,
+    case_events,
+    case_tasks,
+    delete_task,
+    export_csv,
+    get_case,
+    init_workspace,
+    list_cases,
+    save_case,
+    toggle_task,
 )
 from .storage import STATUSES, init_db, list_items, recent_events
 
@@ -174,6 +190,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         init_ai(settings.db_path)
         init_results(settings.db_path)
         init_coverage(settings.db_path)
+        init_workspace(settings.db_path)
 
     def session_csrf(request: Request) -> str | None:
         if not settings.configured:
@@ -523,6 +540,129 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         except (CoverageError, ValueError, TypeError):
             return no_cache(PlainTextResponse("Pesquisa inválida.", status_code=422))
         return no_cache(RedirectResponse("/coverage", status_code=303))
+
+
+    @app.get("/workspace", response_class=HTMLResponse)
+    async def workspace_page(
+        request: Request, tender_id: str = Query("", max_length=180),
+        numero: int = Query(0, ge=0, le=100000),
+    ):
+        csrf = guard(request)
+        if not isinstance(csrf, str):
+            return csrf
+        focused = get_item(settings.db_path, tender_id, numero) if tender_id and numero else None
+        if tender_id and numero and focused is None:
+            return no_cache(PlainTextResponse("Item não encontrado.", status_code=404))
+        case = get_case(settings.db_path, tender_id, numero) if focused else None
+        return no_cache(templates.TemplateResponse(request, "workspace.html", {
+            "csrf": csrf, "cases": list_cases(settings.db_path),
+            "focused": focused, "case": case,
+            "tasks": case_tasks(settings.db_path, tender_id, numero) if case else [],
+            "events": case_events(settings.db_path, tender_id, numero) if case else [],
+            "stages": STAGES, "priorities": PRIORITIES, "statuses": STATUSES,
+            "today": date.today().isoformat(),
+        }))
+
+    @app.get("/api/workspace")
+    async def workspace_api(request: Request):
+        csrf = guard(request, json=True)
+        if not isinstance(csrf, str):
+            return csrf
+        return no_cache(JSONResponse({"data": list_cases(settings.db_path)}))
+
+    @app.get("/workspace/export.csv")
+    async def workspace_export(request: Request):
+        csrf = guard(request, json=True)
+        if not isinstance(csrf, str):
+            return csrf
+        contents = export_csv(list_cases(settings.db_path))
+        return no_cache(Response(
+            content=contents, media_type="text/csv; charset=utf-8",
+            headers={"Content-Disposition": 'attachment; filename="licitaradar-oportunidades.csv"'},
+        ))
+
+    async def workspace_form(request: Request):
+        csrf = guard(request)
+        if not isinstance(csrf, str):
+            return None, csrf
+        form = await request.form()
+        if not check_csrf(csrf, str(form.get("csrf") or "")):
+            return None, no_cache(PlainTextResponse(
+                "Token de segurança inválido.", status_code=403
+            ))
+        return form, None
+
+    def workspace_redirect(tender_id: str, numero: int):
+        from urllib.parse import urlencode
+        query = urlencode({"tender_id": tender_id, "numero": numero})
+        return no_cache(RedirectResponse("/workspace?" + query, status_code=303))
+
+    @app.post("/workspace/save")
+    async def workspace_save(request: Request):
+        form, error = await workspace_form(request)
+        if error is not None:
+            return error
+        tender_id = str(form.get("tender_id") or "")
+        try:
+            numero = int(str(form.get("numero") or "0"))
+            save_case(
+                settings.db_path, tender_id, numero,
+                str(form.get("stage") or "avaliar"),
+                str(form.get("priority") or "normal"),
+                str(form.get("deadline") or ""),
+                str(form.get("notes") or ""),
+            )
+        except WorkspaceError as exc:
+            return no_cache(PlainTextResponse(str(exc), status_code=exc.status_code))
+        except (ValueError, TypeError):
+            return no_cache(PlainTextResponse("Dados inválidos.", status_code=422))
+        return workspace_redirect(tender_id, numero)
+
+    @app.post("/workspace/task/add")
+    async def workspace_task_add(request: Request):
+        form, error = await workspace_form(request)
+        if error is not None:
+            return error
+        tender_id = str(form.get("tender_id") or "")
+        try:
+            numero = int(str(form.get("numero") or "0"))
+            add_task(
+                settings.db_path, tender_id, numero,
+                str(form.get("label") or ""),
+            )
+        except WorkspaceError as exc:
+            return no_cache(PlainTextResponse(str(exc), status_code=exc.status_code))
+        except (ValueError, TypeError):
+            return no_cache(PlainTextResponse("Tarefa inválida.", status_code=422))
+        return workspace_redirect(tender_id, numero)
+
+    @app.post("/workspace/task/toggle")
+    async def workspace_task_toggle(request: Request):
+        form, error = await workspace_form(request)
+        if error is not None:
+            return error
+        tender_id = str(form.get("tender_id") or "")
+        try:
+            numero = int(str(form.get("numero") or "0"))
+            task_id = int(str(form.get("task_id") or "0"))
+            toggle_task(settings.db_path, task_id, tender_id, numero)
+        except (WorkspaceError, ValueError, TypeError):
+            return no_cache(PlainTextResponse("Tarefa inválida.", status_code=422))
+        return workspace_redirect(tender_id, numero)
+
+    @app.post("/workspace/task/delete")
+    async def workspace_task_delete(request: Request):
+        form, error = await workspace_form(request)
+        if error is not None:
+            return error
+        tender_id = str(form.get("tender_id") or "")
+        try:
+            numero = int(str(form.get("numero") or "0"))
+            task_id = int(str(form.get("task_id") or "0"))
+            delete_task(settings.db_path, task_id, tender_id, numero)
+        except (WorkspaceError, ValueError, TypeError):
+            return no_cache(PlainTextResponse("Tarefa inválida.", status_code=422))
+        return workspace_redirect(tender_id, numero)
 
     @app.get("/results", response_class=HTMLResponse)
     async def results_page(
