@@ -246,3 +246,17 @@ def test_no_quote_means_no_financial_scoring(client):
     assert entry["analysis"]["profit_reference"] is None
     assert entry["analysis"]["min_viable"] is None
     assert entry["analysis"]["category_label"] == "Papelaria e escritório"
+
+
+@pytest.mark.parametrize("published", ["0.001", "1e100", "-50", "NaN"])
+def test_impossible_official_reference_does_not_crash_or_invent_profit(db_path, published):
+    tender_id = sample_tender()["id"]
+    quote = validate_quote(sample_quote())
+    save_quote(db_path, tender_id, 1, quote)
+    item = get_item(db_path, tender_id, 1)
+    assert item is not None
+    item["valor_total"] = published
+    result = analyze(item, get_quote(db_path, tender_id, 1))
+    assert result["status"] == "sem_referencia"
+    assert result["profit_reference"] is None
+    assert result["reference"] is None
