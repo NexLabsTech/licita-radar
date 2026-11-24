@@ -118,8 +118,31 @@ jobs:
           docker exec radar-ops-ci python -c "from pathlib import Path; import sqlite3; p=Path('/app/data/licitaradar.db'); assert p.is_file(); db=sqlite3.connect(p); assert db.execute('PRAGMA integrity_check').fetchone()[0]=='ok'; db.close()"
           test -z "$(docker port radar-ops-ci)"
           echo "Rootless private-container health, SQLite and no published ports: PASS"
+      - name: Verify online backup sidecar and restart persistence
+        run: |
+          set -eu
+          docker volume create radar-ops-ci-backups
+          docker run --rm --network none --read-only --tmpfs /tmp \
+            --mount type=volume,source=radar-ops-ci-db,target=/app/data,readonly \
+            --mount type=volume,source=radar-ops-ci-backups,target=/app/backups \
+            licitaradar:ops-ci python -m scripts.ops_backup once \
+              --db /app/data/licitaradar.db --dir /app/backups --keep 2
+          docker run --rm --network none --read-only --tmpfs /tmp \
+            --mount type=volume,source=radar-ops-ci-backups,target=/app/backups,readonly \
+            licitaradar:ops-ci python -c "from pathlib import Path; from scripts.ops_backup import verify_sqlite; paths=list(Path('/app/backups').glob('licitaradar-*.sqlite3')); assert len(paths)==1; verify_sqlite(paths[0]); print('Backup volume integrity PASS')"
+          docker restart radar-ops-ci
+          for attempt in $(seq 1 25); do
+            if docker exec radar-ops-ci python -c "import urllib.request; assert urllib.request.urlopen('http://127.0.0.1:8000/healthz',timeout=2).status == 200" 2>/dev/null; then
+              break
+            fi
+            if [ "$attempt" -eq 25 ]; then exit 1; fi
+            sleep 1
+          done
+          docker exec radar-ops-ci python -c "from pathlib import Path; import sqlite3; p=Path('/app/data/licitaradar.db'); assert p.is_file(); c=sqlite3.connect(p); assert 'items' in [r[0] for r in c.execute('select name from sqlite_master')]; c.close()"
+          echo "Backup sidecar and database persistence across app restart: PASS"
       - name: Cleanup synthetic CI data
         if: always()
         run: |
           docker rm -f radar-ops-ci 2>/dev/null || true
           docker volume rm radar-ops-ci-db 2>/dev/null || true
+          docker volume rm radar-ops-ci-backups 2>/dev/null || true
