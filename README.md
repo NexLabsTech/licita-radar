@@ -86,6 +86,10 @@ No radar, clique **Analisar com IA**: confirme o consentimento por análise e op
 python -m pytest -q tests/test_ai.py
 ```
 
+## Cobertura municipal progressiva
+
+Na interface **Cobertura**, crie uma pesquisa por período (1–7 dias), UF, modalidade e opcional código IBGE municipal de sete dígitos. Cada clique **Consultar próximo lote** consulta no máximo 2 páginas de 20 publicações oficiais, grava o cursor no SQLite e continua de onde parou. A página mostra estado **parcial**, **erro** ou **finalizada conforme a fonte**; nunca afirma cobertura completa enquanto existirem páginas pendentes, e a exclusão de uma pesquisa apaga somente o cursor, não os itens já coletados. A coleta automática antiga é separada e continua limitada. Sem token ou custo de API; PNCP pode ter atrasos ou falhas.
+
 ## Resultados oficiais de itens (sem inventar participantes)
 
 No radar clique **Resultados PNCP** para consultar manualmente a API pública de resultados daquele item. Quando publicado, o sistema guarda valor unitário e quantidade homologados com até quatro casas decimais, situação informado/cancelado e razão social de fornecedor PJ (sem salvar identificadores ou nomes de PF/PE). A consulta exige login/CSRF, limita reconsulta a 60 segundos e preserva o último snapshot caso o PNCP falhe. **Quantidade de registros de resultados não é quantidade de licitantes** e valor homologado não é cotação atual de compra ou margem possível. Sem custo de API e sem coleta automática nesse endpoint.

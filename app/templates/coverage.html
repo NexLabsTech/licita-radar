@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#080910">
+  <title>Varredura aprofundada · LicitaRadar</title>
+  <link rel="stylesheet" href="/static/site.css">
+</head>
+<body class="radar-body">
+  <a class="skip-link" href="#principal">Pular para o conteúdo</a>
+  <div class="ambient ambient-lime" aria-hidden="true"></div>
+  <div class="ambient ambient-pink" aria-hidden="true"></div>
+  <header class="topbar"><div class="topbar-inner">
+    <a class="brand" href="/" aria-label="LicitaRadar início">
+      <span class="brand-icon" aria-hidden="true">◉</span>
+      <span>licita<span class="brand-highlight">radar</span><small>INTELLIGENCE</small></span>
+    </a>
+    <nav class="main-nav" aria-label="Navegação">
+      <a class="nav-link" href="/">Radar</a>
+      <a class="nav-link" href="/monitor">Meu monitor</a>
+      <a class="nav-link active" href="/coverage" aria-current="page">Cobertura PNCP</a>
+    </nav>
+    <div class="account-area"><form method="post" action="/logout">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <button class="logout-button" type="submit">Sair ↗</button>
+    </form></div>
+  </div></header>
+  <main class="container coverage-container" id="principal">
+    <section class="glass-panel coverage-hero">
+      <p class="eyebrow compact"><span class="sparkle" aria-hidden="true">✦</span> COLETA EM LOTES · DADOS OFICIAIS</p>
+      <h1>Mais municípios. <span class="gradient-text">Mais alcance.</span></h1>
+      <p class="muted">Crie uma pesquisa de publicações PNCP e avance página por página. O progresso é salvo no banco para continuar após reiniciar o navegador ou o servidor.</p>
+      <div class="monitor-pills">
+        <span class="monitor-pill">◎ 20 publicações por página</span>
+        <span class="monitor-pill">◈ 2 páginas por execução</span>
+        <span class="monitor-pill">⌁ Sem custos de API</span>
+      </div>
+      <p class="coverage-note">A cobertura depende de cada filtro, do período e das respostas da fonte. Uma pesquisa parcial ou com erro nunca é considerada completa. PNCP não contém necessariamente todas as oportunidades e a coleta não é instantânea.</p>
+    </section>
+
+    <section class="panel glass-panel" aria-labelledby="new-scan-title">
+      <div class="panel-title"><div>
+        <p class="eyebrow compact">CRIAR PESQUISA</p><h2 id="new-scan-title">Defina o alcance</h2>
+        <p class="muted">O código IBGE municipal (sete dígitos) é opcional. Sem ele, a pesquisa considera a UF informada ou toda a área abrangida pelo filtro PNCP.</p>
+      </div><span class="panel-icon" aria-hidden="true">⌕</span></div>
+      <form method="post" action="/coverage/start" class="coverage-form">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <div><label for="coverage-start">Publicações de</label><input id="coverage-start" type="date" name="start" min="2021-01-01" max="{{ today }}" value="{{ start }}" required></div>
+        <div><label for="coverage-end">Publicações até</label><input id="coverage-end" type="date" name="end" min="2021-01-01" max="{{ today }}" value="{{ today }}" required></div>
+        <div><label for="coverage-uf">UF (opcional)</label><input id="coverage-uf" type="text" name="uf" maxlength="2" value="SP" placeholder="Ex.: SP"></div>
+        <div><label for="coverage-municipality">Código IBGE do município (opcional)</label><input id="coverage-municipality" type="text" name="municipality_ibge" pattern="[0-9]{7}" inputmode="numeric" maxlength="7" placeholder="7 dígitos"></div>
+        <div><label for="coverage-modality">Modalidade</label>
+          <select id="coverage-modality" name="modality" required>
+            <option value="6">Pregão eletrônico (PNCP 6)</option>
+            <option value="8">Dispensa de licitação (PNCP 8)</option>
+          </select>
+        </div>
+        <div class="coverage-submit"><button class="primary-button" type="submit">Criar pesquisa <span aria-hidden="true">✦</span></button></div>
+      </form>
+      <p class="muted coverage-footnote">Cada pesquisa abrange até sete dias consecutivos. Criar a pesquisa não dispara requisição: para começar, clique “Consultar próximo lote”. No máximo 20 pesquisas salvas; é possível remover somente o cursor, sem apagar os itens coletados.</p>
+    </section>
+
+    <section class="panel glass-panel" aria-labelledby="coverage-jobs-title">
+      <div class="panel-title"><div>
+        <p class="eyebrow compact">PROGRESSO DO PNCP</p><h2 id="coverage-jobs-title">Pesquisas salvas <span class="count">{{ jobs|length }}</span></h2>
+        <p class="muted">Cada lote importa no máximo 40 publicações; retome manualmente até a fonte indicar a última página.</p>
+      </div><span class="panel-icon" aria-hidden="true">◎</span></div>
+      <div class="coverage-jobs">
+        {% for job in jobs %}
+        <article class="coverage-job">
+          <div class="coverage-job-header">
+            <strong>Pesquisa #{{ job.id }} · {{ job.uf or "Brasil" }}{% if job.municipality_ibge %} · IBGE {{ job.municipality_ibge }}{% endif %}</strong>
+            {% if job.state == 'completed' %}
+              <span class="coverage-state complete">Finalizada na API</span>
+            {% elif job.state == 'error' %}
+              <span class="coverage-state failed">Erro, retome a página</span>
+            {% else %}
+              <span class="coverage-state paused">Parcial, pode continuar</span>
+            {% endif %}
+          </div>
+          <p class="coverage-subtitle">{{ job.start_date }} até {{ job.end_date }} · Modalidade {{ job.modality }} · Próxima página {{ job.next_page }}</p>
+          <div class="coverage-metrics">
+            <span><strong>{{ job.processed_pages }}</strong> páginas concluídas</span>
+            <span><strong>{{ job.fetched }}</strong> publicações processadas</span>
+            <span><strong>{{ job.material_items }}</strong> itens de material importados</span>
+            <span><strong>{{ job.errors }}</strong> falhas registradas</span>
+          </div>
+          <p class="muted coverage-detail">{{ job.detail or "Pesquisa criada; ainda não houve consulta à API." }}</p>
+          <div class="coverage-actions">
+            {% if job.state != "completed" %}
+            <form method="post" action="/coverage/next">
+              <input type="hidden" name="csrf" value="{{ csrf }}">
+              <input type="hidden" name="id" value="{{ job.id }}">
+              <button type="submit" class="primary-button">Consultar próximo lote ↻</button>
+            </form>
+            {% endif %}
+            <form method="post" action="/coverage/delete">
+              <input type="hidden" name="csrf" value="{{ csrf }}">
+              <input type="hidden" name="id" value="{{ job.id }}">
+              <button type="submit" class="coverage-delete">Remover cursor</button>
+            </form>
+            <a class="table-link" href="/#licitacoes">Ver itens no radar ↗</a>
+          </div>
+        </article>
+        {% else %}
+          <div class="monitor-empty-state">
+            <span aria-hidden="true">◌</span><strong>Nenhuma pesquisa criada</strong>
+            <p>Escolha o período, a região e a modalidade para iniciar a coleta em lotes.</p>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+    <footer>
+      <span><strong>◉ LicitaRadar</strong> · Coleta avançada</span>
+      <span>Dados PNCP · Sem garantia de cobertura exaustiva · Sem lances automáticos</span>
+    </footer>
+  </main>
+</body>
+</html>

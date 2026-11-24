@@ -240,6 +240,24 @@ def run() -> None:
                         path=str(output / ("results-" + name + ".png")),
                         full_page=True, animations="disabled",
                     )
+                    page.goto(root + "/coverage", wait_until="networkidle")
+                    assert page.locator("#new-scan-title").is_visible()
+                    assert page.locator("#coverage-jobs-title").is_visible()
+                    if name == "desktop":
+                        page.get_by_label("Código IBGE do município").fill("3509502")
+                        page.get_by_role("button", name="Criar pesquisa").click()
+                        page.locator(".coverage-job").first.wait_for()
+                        assert page.get_by_role(
+                            "button", name="Consultar próximo lote"
+                        ).is_visible()
+                    assert page.evaluate(
+                        "() => document.documentElement.scrollWidth <= window.innerWidth + 1"
+                    ), "Overflow no painel de cobertura " + name
+                    assert not problems, "Script de cobertura " + name + ": " + str(problems)
+                    page.screenshot(
+                        path=str(output / ("coverage-" + name + ".png")),
+                        full_page=True, animations="disabled",
+                    )
                     page.close()
                     print("Quote + AI visual smoke " + name + ": PASS")
                 browser.close()
