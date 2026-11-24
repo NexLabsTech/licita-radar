@@ -76,9 +76,9 @@ def upsert_tender(path: str, tender: dict, items: list[dict]) -> int:
         """, {**tender, "atualizado_em": stamp})
         db.execute("DELETE FROM items WHERE tender_id = ?", (tender["id"],))
         for item in valid:
-            status = int(item.get("situacaoCompraItemId") or 1)
+            status = int(item.get("situacaoCompraItemId") or 0)
             if status not in STATUSES:
-                status = 1
+                status = 0
             confidential = item.get("orcamentoSigiloso") is True
             db.execute("""
             INSERT INTO items
