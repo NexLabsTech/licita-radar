@@ -46,7 +46,7 @@ A CI no GitHub Actions executa os checks em Python 3.12 e 3.13 em PRs e pushes p
 4. No dashboard, filtre descrição, UF e situação, veja valores quando publicados e abra o edital original.
 5. Quando o PNCP falha, o sistema registra erro, **não infere concorrência zero**. Uma compra com itens incompletos não é salva como se estivesse completa.
 
-O limite de 20 publicações é deliberado e significa que a consulta **não é uma cobertura exaustiva** do período. Não há atualização automática nesta versão. O dashboard mostra apenas os registros efetivamente coletados.
+O limite de 20 publicações é deliberado e significa que a consulta **não é uma cobertura exaustiva** do período. Com `AUTO_SCAN_ENABLED=1` e servidor ligado, o aplicativo consulta automaticamente as publicações de ontem e hoje a cada `AUTO_SCAN_INTERVAL_MINUTES` (30 a 1440; padrão 360) para a UF `AUTO_SCAN_UF`. São duas modalidades por ciclo, cada uma com limite de 20 publicações. A varredura não acontece se o servidor estiver desligado. O dashboard mostra apenas os registros efetivamente coletados, além de mudanças de situação observadas entre coletas. A rota autenticada `/api/changes` expõe esse histórico. Sem alertas externos ainda.
 
 **Persistência:** banco SQLite no caminho `DB_PATH`. Em Docker/produção, monte volume persistente em `/app/data` e execute um worker. Use HTTPS, segredos externos e `COOKIE_SECURE=1`. Sem TLS ou volume persistente, não considere o deploy pronto para produção.
 
