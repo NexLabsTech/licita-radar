@@ -66,6 +66,7 @@ from .security import (
     verify_login_csrf,
     verify_password,
 )
+from .storage import STATUSES, init_db, list_items, recent_events
 from .suppliers import (
     SupplierError,
     add_offer,
@@ -74,7 +75,6 @@ from .suppliers import (
     promote_offer,
     remove_offer,
 )
-from .storage import STATUSES, init_db, list_items, recent_events
 from .workspace import (
     PRIORITIES,
     STAGES,
