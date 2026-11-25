@@ -2,7 +2,7 @@
 
 Radar pessoal de licitações de **produtos** com login único, coleta oficial do PNCP e identificação de itens **desertos** (código 4) e **fracassados** (código 5).
 
-> Código do MVP validado em CI; implantação pública ainda não concluída. **Não é uma plataforma de lances**, não revela propostas sigilosas e não presume que um item deserto ainda esteja disponível. Informações devem ser conferidas no edital.
+> **Fase de código pré-produção auditada** na PR #12: jornada integrada + 224 testes por Python 3.12/3.13, CI/Chromium/Docker; implantação e validação em VPS real ainda não realizadas. **Não é uma plataforma de lances**, não revela propostas sigilosas e não presume que um item deserto ainda esteja disponível. Informações devem ser conferidas no edital.
 
 ## Iniciar localmente
 
