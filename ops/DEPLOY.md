@@ -16,6 +16,18 @@ Uma VPS Linux já disponível e dentro dos seus limites gratuitos (ex.: Oracle A
 
 Verificar na VPS: instância e volumes elegíveis/sem custo adicional, arquitetura AMD64/ARM64, Docker/Compose, memória e disco, portas 80 e 443 livres (TCP e opcional UDP 443), DNS A/AAAA do subdomínio apontando à VPS, saída Internet para ACME e PNCP, firewall externo restrito, isolamento de outros serviços e backup externo planejado. Nenhum item acima foi confirmado no ambiente do usuário.
 
+## Preflight não destrutivo do host (antes de configurar segredos)
+
+Com o repositório disponível na VPS e Python 3.12+ instalado, execute como usuário não root:
+
+~~~bash
+python -m scripts.ops_host_preflight
+# Após definir/controlar um subdomínio real:
+python -m scripts.ops_host_preflight --domain radar.seudominio.com.br
+~~~
+
+Este comando **não inicia contêiner, altera DNS, abre portas, exibe IP ou coleta senhas**. Retorna JSON com PASS/WARN/BLOCKED e termina com código 2 quando faltar qualquer gate externo. O diagnóstico de portas 80/443 é local; porta já ocupada pode significar proxy de outro serviço. **Não desligue o proxy existente**: nesse caso, uma integração com ele precisa de plano próprio. DNS resolvido **não comprova** que aponta para a VPS correta. O script nunca aprova gratuidade da Oracle nem firewall/HTTPS real, e não autentica em painel de faturamento. Não enviar IP, senhas ou logs confidenciais pelo chat.
+
 ## Instalação no host (somente após autorização)
 
 Na raiz do repositório, como usuário Linux **não root** que opera o Docker:
