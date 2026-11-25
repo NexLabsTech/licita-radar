@@ -71,9 +71,9 @@ jobs:
         run: python -m pip install -r requirements-dev.txt
       - name: Production configuration and recovery tests
         run: |
-          python -m pytest -q tests/test_ops.py
-          python -m compileall -q scripts/ops_setup.py scripts/ops_backup.py
-          ruff check scripts/ops_setup.py scripts/ops_backup.py tests/test_ops.py
+          python -m pytest -q tests/test_ops.py tests/test_ops_host_preflight.py
+          python -m compileall -q scripts/ops_setup.py scripts/ops_backup.py scripts/ops_host_preflight.py
+          ruff check scripts/ops_setup.py scripts/ops_backup.py scripts/ops_host_preflight.py tests/test_ops.py tests/test_ops_host_preflight.py
       - name: Create disposable CI-only credentials (never production)
         run: |
           python - <<'PY'

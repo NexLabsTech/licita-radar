@@ -1,0 +1,18 @@
+# LR-RELEASE-WO-007 | Host preflight somente leitura, sem deploy
+
+**Estado:** APPROVED somente para código read-only pré-deploy, merge pendente. **Context Lock:** main `5f04a6edf257a4dd76340f9d2b9df122ecd4e7c6` (compare `identical`), Source Pack v0.12 blob `e72713188027a795f2981d1678718b1face5a787`, `ops/DEPLOY.md` blob `5d47d6f2130df677b8de36f3711b5a3810a239bf`, `ops/compose.yaml` blob `dc4ffa101519d86c71467efaf2b1f2234fda79e4`. Risco STANDARD, observação local read-only.
+
+**OBJECTIVE:** preparar a passagem segura entre código já qualificado e validação na VPS existente, sem exigir novo serviço, despesa, credenciais compartilhadas ou ação destrutiva.
+
+**CONTEXT / SOURCE OF TRUTH:** ADR-008 e R9 do Source Pack, Docker Compose, Caddy, `scripts/ops_setup.py`, `ops/DEPLOY.md`; VPS real e elegibilidade de custo ainda não verificadas.
+
+**SCOPE NECESSARY:** comando Python stdlib `python -m scripts.ops_host_preflight [--domain subdominio-real]` que observa somente o host: Linux/arquitetura, execução não root, memória/disco, Docker/Compose, ocupação local TCP 80/443, resolução DNS opcional. Relatório em JSON sem senhas, tokens, endereços/IPs brutos nem hostname. Estados PASS/WARN/BLOCKED separados; `BLOCKED` se ambiente incompleto, não autoriza deploy. Testes determinísticos sem rede e integração no CI existente. Guia de execução curto. **IMPORTANT posterior:** revisão independente da VPS real, elegibilidade de gratuidade e inventário de outros serviços, firewall, domínio/DNS, ACME, cópia remota criptografada, operação e rollback. **OUT OF SCOPE:** executar Docker Compose up/down, SSH, tocar firewall/DNS/proxy, criar contas, gastar recursos, segredos ou modificar aplicativo.
+
+**FILES/SOURCES TO READ:** docs/SOURCE_PACK.md, ops/DEPLOY.md, ops/compose.yaml, ops/Caddyfile, scripts/ops_setup.py, tests/test_ops.py, .github/workflows/ci.yml e README.
+
+**REQUIREMENTS / ARCHITECTURE RULES:** read-only, subprocess sem shell, timeout e retorno sanetizado; avaliação separada da coleta de evidência; nenhum status de custo `PASS` sem comprovante de console de faturamento; portas ocupadas sempre bloqueiam implantar novo Caddy sem decisão. DNS sozinho não comprova apontamento correto nem TLS; não resolver domínio por padrão. Falha de ferramenta/OS vira BLOCKED, nunca PASS presumido. Não escrever arquivos automaticamente.
+
+**ACCEPTANCE CRITERIA:** CI verde, testes para host elegível sintético, port 80/443 ocupadas, Docker ausente, disco baixo, domínio ausente, usuário root e saída protegida. Não revelar IP público/privado ou nome de serviço em uso. Sem deploy ou despesa. A versão somente progride para execução de infraestrutura após provas reais e autorização.
+
+**TESTS:** pytest mocks puros, Ruff/compileall, CI 4/4 jobs Python 3.12/3.13, Chromium e Docker existentes. **DELIVERABLES:** script, testes, evidência, PR, auditoria pt-BR, Checkpoint Delta. **REVIEW FORMAT:** APPROVED / CORRECTION REQUIRED / BLOCKED. **STOP CONDITION:** parar antes de qualquer deploy/alteração de infraestrutura; merge somente com auditoria e CI verdes.
+**Evidence Bundle / Checkpoint Delta aprovado:** main base 5f04a6edf257a4dd76340f9d2b9df122ecd4e7c6, head auditado 85a154176ef40eb2ba4fdac146cc63d31a51fd64; CI GitHub Actions #45703696746 4/4 jobs SUCCESS, 246/246 pytest por matriz Python 3.12/3.13; 37/37 pytest ops, Ruff/compileall/JS, PNCP smoke, Chromium desktop/mobile e Docker+backup/restart. Visual evidence artifact #15064965257 SHA256 d9a0d90c1dae86e95227d1ea24e286d4bcc9082b05aeaa2aae845f1947782f6f. Auditoria pt-BR no comentário PR #13: APPROVED apenas para preflight read-only. VPS real, elegibilidade gratuita, DNS/HTTPS, firewall e off-host backup continuam BLOCKED, nenhuma implantação/custo/autorização presumida.

@@ -1,4 +1,4 @@
-# LicitaRadar | Source Pack v0.12
+# LicitaRadar | Source Pack v0.13
 
 ## Source hierarchy
 Source Check do GitHub (HEAD + arquivos existentes) > este Checkpoint > Decisions Ledger/ADRs > Scope > Definition of Done > Architecture > Requirements > evidências; Git/código/testes prevalecem sobre lembranças da conversa. Este documento é propositalmente compacto.
@@ -51,7 +51,8 @@ LR-DATA-WO-002: resultados oficiais por item PNCP sem inferir concorrentes (PR #
 LR-COVER-WO-003: coleta por região/IBGE com cursor paginado e retomável (PR #9 merged, squash 430897aa4af8e83e8ca4a56e97997e0caf087cbd).
 LR-FLOW-WO-004: workspace privado de etapas/notas/prazos/checklist e CSV seguro (PR #10 merged, squash b6e8eca978e74803a0e2512d56757efec3c89e27).
 LR-SUP-WO-005: comparador privado de até 12 fornecedores por item e seleção explícita da cotação principal (PR #11 merged, squash 096effc5c28c006e04cbc07ccd5e9fd4c027b4cf).
-LR-QA-WO-006: hardening de sessão e matriz E2E de aceite pré-produção (PR #12 APPROVED após CI, merge condicionado ao read-back final).
+LR-QA-WO-006: hardening de sessão e matriz E2E de aceite pré-produção (PR #12 merged, squash 5f04a6edf257a4dd76340f9d2b9df122ecd4e7c6).
+LR-RELEASE-WO-007: preflight host somente leitura com relatório de gates não comprovados (PR #13 APPROVED apenas para código, merge pendente).
 Fase de código: CODE_QUALIFIED_PREPRODUCTION após auditoria PR #12 (integrar somente se head final/CI verdes; confirmar merge SHA em main). PRs necessárias #1–#12; nenhuma próxima funcionalidade NECESSARY identificada nos requisitos R1–R14. Implantação/validação real na VPS são gates separados, explicitamente adiados pelo usuário. Sem custos e sem propostas automáticas.
 
 ## Definition of Done
@@ -73,6 +74,8 @@ ADR-011 APPROVED (2026-11-24): varredura PNCP avançada apenas sob comando expl�
 ADR-012 APPROVED (2026-11-24): pipeline de participação exclusivamente manual; etapas 'inscrito', 'ganho' e 'perdido' NÃO comprovam ação na plataforma de licitação; notas privadas não enviadas à IA e CSV neutraliza fórmulas.
 
 ADR-013 APPROVED (2026-11-25): cotações de fornecedores múltiplos são informadas manualmente, com origem e data declaradas, sem scraping; promoção explícita, transacional e bloqueada quando item PNCP mudou. Fórmulas financeiras permanecem em analyze/validate_quote existentes, sem automação de lances.
+
+ADR-014 APPROVED (2026-11-25): preflight da VPS executa exclusivamente observações sem escrita, custos nunca são aprovados automaticamente; deploy exige provas independentes de conta/quotas, domínio, firewall/HTTPS e backup off-host. Portas 80/443 ocupadas bloqueiam novo proxy, sem parar serviços existentes.
 
 ## Checkpoint
 2026-11-23: LR-MVP-WO-001 aprovado como **incremento de código pré-produção** após revisão da PR #1; baseline 85bacf56e4782fb6e1c10f8fd284e2ca0222408c; GitHub Actions run 45304898676: Python 3.12/3.13, 14/14 testes por matriz, lint/compileall PASS; smoke PNCP real PASS (10 publicações, 8 itens de material na amostra). Deploy, operação agendada e versão completa NÃO validados. PR #1 squash merge confirmado em `6c7692f0ada168cfda1514ed7c7629ba05a4c2c6`.
@@ -97,3 +100,5 @@ ADR-013 APPROVED (2026-11-25): cotações de fornecedores múltiplos são inform
 2026-11-25: LR-SUP-WO-005 APPROVED para código pré-produção, PR #11, base b6e8eca978e74803a0e2512d56757efec3c89e27, head auditado 1a8a59825f0dc86279e140f2eb42ee4e0dfd51f1. CI #45701421452 4/4 jobs SUCCESS: **205/205 testes Python 3.12 e 205/205 Python 3.13**, Ruff/JS, PNCP smoke publicações, Docker/backup, Chromium desktop/mobile, artifact screenshots #15062463907 sha256 57777e5ed728f7878702bae3b8f61dde721515e8a02848ba8b300572097233e5. Sem valores de mercado obtidos automaticamente, sem lances, sem deploy ou validação tributária real.
 
 2026-11-25: LR-QA-WO-006 auditada **APPROVED para fase de código pré-produção** na PR #12; base 096effc5c28c006e04cbc07ccd5e9fd4c027b4cf, HEAD auditado d2b10bc898220579dcf73c237c8ada6d827845e1. CI #45702319423: 4/4 SUCCESS, **224/224 pytest por Python 3.12 e 3.13**, Ruff/compileall/JS, Chromium desktop/mobile e Docker rootless/backup/restart. Artifact #15063931964 digest sha256 71adda6b7a3ba7bedfca951f262c2bfe8ec69db6a3736830183a5b811b90737e. Cookie/base64 malformed fail-closed e jornada integrada sem rede externa. **CODE_QUALIFIED_PREPRODUCTION**, somente após merge aprovado. VPS/HTTPS/AI paga/mercado real e versão deployada ainda NÃO validados.
+
+2026-11-25: LR-RELEASE-WO-007 auditada **APPROVED apenas para código de preflight host read-only** PR #13, base 5f04a6edf257a4dd76340f9d2b9df122ecd4e7c6, head auditado 85a154176ef40eb2ba4fdac146cc63d31a51fd64; CI #45703696746 **4/4 jobs SUCCESS**, 246/246 pytest em Python 3.12 e 3.13, 37/37 ops pytest, Ruff/JS, PNCP smoke, Chromium desktop/mobile, Docker/backup/restart. Artifact screenshots #15064965257 SHA256 d9a0d90c1dae86e95227d1ea24e286d4bcc9082b05aeaa2aae845f1947782f6f. Nenhum comando de inspeção foi executado na VPS real. Status: **HOST_PREFLIGHT_PREPARED**, billing/DNS/TLS/firewall/backup externo/VPS BLOCKED; ainda CODE_QUALIFIED_PREPRODUCTION, não DEPLOYED.
