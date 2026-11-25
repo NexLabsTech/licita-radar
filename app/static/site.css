@@ -612,3 +612,60 @@ td .category-tag{display:inline-block;color:#c3ff9a;background:rgba(193,255,66,.
  .workspace-task-add>div{flex-direction:column;align-items:stretch}
  .workspace-task-add .ghost-button{width:100%}
 }
+
+
+/* LR-SUP-WO-005: user-entered supplier offers comparison, neon-glass */
+.suppliers-container{max-width:1290px}
+.suppliers-hero{margin-bottom:22px;padding:38px 42px;
+ background:linear-gradient(115deg,rgba(193,255,66,.07),rgba(17,20,30,.85) 53%,rgba(255,76,168,.08))}
+.suppliers-hero h1{font-size:clamp(30px,4.5vw,55px);margin:10px 0 13px}
+.suppliers-hero .muted{max-width:820px}
+.suppliers-disclaimer{max-width:860px;font-size:11px;color:#c2cbd4;line-height:1.8;margin-top:16px}
+.suppliers-current{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px;margin:20px 0}
+.suppliers-current>div{border:1px solid var(--line);border-radius:12px;padding:13px;background:rgba(255,255,255,.023);overflow-wrap:anywhere}
+.suppliers-current span,.supplier-figures span{display:block;color:var(--muted);font-size:11px;margin-bottom:7px}
+.suppliers-current strong{display:block;font-size:14px}
+.suppliers-actions{display:flex;gap:16px;flex-wrap:wrap}
+.suppliers-layout{display:grid;grid-template-columns:minmax(0,.92fr) minmax(0,1.08fr);align-items:start;gap:20px}
+.suppliers-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 12px}
+.suppliers-form label{display:block;color:#d4dce7;font-size:11px;font-weight:750;margin-bottom:6px}
+.suppliers-form input,.suppliers-form textarea{
+ display:block;width:100%;min-width:0;padding:11px 12px;border-radius:11px;
+ border:1px solid var(--line-strong);color:var(--ink);
+ background:rgba(7,10,18,.68);font:inherit}
+.suppliers-form input{height:44px}
+.suppliers-form textarea{resize:vertical;line-height:1.6}
+.suppliers-form input:focus,.suppliers-form textarea:focus{outline:2px solid var(--lime);outline-offset:2px}
+.suppliers-full{grid-column:1/-1}
+.suppliers-form .primary-button{justify-content:center;margin-top:5px}
+.suppliers-fineprint{font-size:11px;line-height:1.75;margin-top:20px}
+.supplier-offers{display:flex;flex-direction:column;gap:14px;margin-top:20px}
+.supplier-offer{border:1px solid var(--line);border-radius:16px;min-width:0;overflow-wrap:anywhere;
+ padding:20px;background:linear-gradient(125deg,rgba(193,255,66,.032),rgba(255,255,255,.015))}
+.supplier-offer-top{display:flex;flex-wrap:wrap;align-items:center;gap:10px;justify-content:space-between}
+.supplier-offer-top strong{font-size:16px}
+.supplier-offer>.muted{font-size:11px;margin:8px 0 15px}
+.supplier-tag{border:1px solid rgba(193,255,66,.18);border-radius:100px;
+ padding:5px 9px;font-size:10px;color:var(--lime);background:rgba(193,255,66,.05);white-space:nowrap}
+.supplier-tag.stale{color:var(--pink);border-color:rgba(255,76,168,.3);background:rgba(255,76,168,.06)}
+.supplier-tag.active{border-color:rgba(193,255,66,.55);background:rgba(193,255,66,.11);font-weight:780}
+.supplier-figures{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:11px;margin:13px 0}
+.supplier-figures>div{border:1px solid var(--line);border-radius:11px;padding:12px 13px;min-width:0;background:rgba(0,0,0,.12)}
+.supplier-figures strong{display:block;font-size:13px;overflow-wrap:anywhere}
+.supplier-offer-note{font-size:11px;line-height:1.65;color:#d4dce5;padding:10px 12px;
+ border-left:2px solid var(--pink);background:rgba(255,76,168,.04);margin-bottom:12px}
+.supplier-offer-actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-top:17px}
+.supplier-offer-actions form{margin:0}
+.supplier-offer-actions .primary-button{font-size:11px}
+.supplier-remove{border:1px solid rgba(255,76,168,.22);border-radius:11px;
+ padding:12px 13px;color:#ffbad8;background:rgba(255,76,168,.06);font-size:11px}
+.supplier-remove:hover{border-color:var(--pink)}
+.supplier-link{color:var(--lime)}
+@media(max-width:960px){.suppliers-layout{grid-template-columns:1fr}.suppliers-hero{padding:32px}}
+@media(max-width:640px){
+ .suppliers-hero{padding:24px 20px}.suppliers-hero h1{font-size:34px}
+ .suppliers-current{grid-template-columns:1fr}
+ .suppliers-form{grid-template-columns:1fr}
+ .supplier-figures{grid-template-columns:1fr 1fr}
+ .supplier-offer-actions form,.supplier-offer-actions button{width:100%}
+}

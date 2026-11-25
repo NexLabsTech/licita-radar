@@ -86,6 +86,10 @@ No radar, clique **Analisar com IA**: confirme o consentimento por análise e op
 python -m pytest -q tests/test_ai.py
 ```
 
+## Comparar fornecedores com cotações próprias
+
+Abra **Comparar fornecedores** no item do radar, na cotação ou no workspace. Registre até 12 propostas recebidas de fornecedores reais, com data, URL HTTPS opcional e custos de lote. O ranking é **por custo total calculado**, reutilizando os mesmos cálculos Decimal da tela **Custo e margem**. Salvar no comparador NÃO ativa a cotação principal; clique explicitamente em **Usar no cálculo principal** para atualizar a referência privada do radar. Quando o PNCP alterar descrição/quantidade, as cotações antigas são marcadas desatualizadas e não podem ser ativadas até serem recadastradas. Não consulta preço de mercado nem comprova disponibilidade, entrega, elegibilidade ou imposto devido. Nenhum lance é enviado.
+
 ## Meu trabalho: oportunidades e checklists
 
 Abra **Planejar oportunidade** em cada item do radar ou **Meu trabalho** no menu. Salve etapa, prioridade, data e notas privadas; acrescente até 20 tarefas por oportunidade, acompanhe o histórico de alterações e exporte o CSV privado com proteção contra fórmulas. **Etapas como 'inscrito' e 'ganho' são anotações manuais**, não comprovação oficial. Nenhuma inscrição, lance ou envio de notas à IA acontece automaticamente.

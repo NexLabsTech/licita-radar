@@ -288,6 +288,37 @@ def run() -> None:
                         path=str(output / ("workspace-" + name + ".png")),
                         full_page=True, animations="disabled",
                     )
+                    supplier_url = root + "/suppliers?" + urlencode({
+                        "tender_id": control, "numero": 1,
+                    })
+                    page.goto(supplier_url, wait_until="networkidle")
+                    assert page.get_by_role(
+                        "heading", name="Comparação registrada"
+                    ).is_visible()
+                    if name == "desktop":
+                        page.locator("#supplier").fill("Fornecedor fictício do CI")
+                        page.locator("#supplier_unit_cost").fill("3.00")
+                        page.locator("#supplier_freight").fill("5.00")
+                        page.get_by_role(
+                            "button", name="Salvar cotação do fornecedor"
+                        ).click()
+                        page.wait_for_url(supplier_url)
+                        assert page.get_by_text(
+                            "Fornecedor fictício do CI"
+                        ).count() >= 1
+                        page.get_by_role(
+                            "button", name="Usar no cálculo principal"
+                        ).click()
+                        page.wait_for_url(supplier_url)
+                        assert page.get_by_text("Ativa no cálculo").count() >= 1
+                    assert page.evaluate(
+                        "() => document.documentElement.scrollWidth <= window.innerWidth + 1"
+                    ), "Overflow em suppliers " + name
+                    assert not problems, "Erro JavaScript em suppliers " + name + ": " + str(problems)
+                    page.screenshot(
+                        path=str(output / ("suppliers-" + name + ".png")),
+                        full_page=True, animations="disabled",
+                    )
                     page.close()
                     print("Quote + AI visual smoke " + name + ": PASS")
                 browser.close()

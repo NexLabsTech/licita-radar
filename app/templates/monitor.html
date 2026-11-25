@@ -137,6 +137,7 @@
             <div class="monitor-actions">
               <a class="table-link" href="{{ item.link }}" target="_blank" rel="noopener noreferrer">Fonte PNCP ↗</a>
               <a class="table-link" href="/quote?tender_id={{ item.tender_id|urlencode }}&numero={{ item.numero }}">Margem ↗</a>
+              <a class="table-link" href="/suppliers?tender_id={{ item.tender_id|urlencode }}&numero={{ item.numero }}">Fornecedores ↗</a>
               <a class="table-link" href="/results?tender_id={{ item.tender_id|urlencode }}&numero={{ item.numero }}">Resultados ↗</a>
               <a class="table-link" href="/workspace?tender_id={{ item.tender_id|urlencode }}&numero={{ item.numero }}">Planejar ↗</a>
               <form action="/monitor/favorite" method="post">

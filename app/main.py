@@ -67,6 +67,14 @@ from .security import (
     verify_password,
 )
 from .storage import STATUSES, init_db, list_items, recent_events
+from .suppliers import (
+    SupplierError,
+    add_offer,
+    compare_offers,
+    init_suppliers,
+    promote_offer,
+    remove_offer,
+)
 from .workspace import (
     PRIORITIES,
     STAGES,
@@ -191,6 +199,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         init_results(settings.db_path)
         init_coverage(settings.db_path)
         init_workspace(settings.db_path)
+        init_suppliers(settings.db_path)
 
     def session_csrf(request: Request) -> str | None:
         if not settings.configured:
@@ -730,6 +739,115 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         target = urlencode({"tender_id": tender_id, "numero": numero})
         return no_cache(RedirectResponse("/results?" + target, status_code=303))
+
+
+    @app.get("/suppliers", response_class=HTMLResponse)
+    async def supplier_page(
+        request: Request,
+        tender_id: str = Query(..., min_length=1, max_length=180),
+        numero: int = Query(..., ge=1, le=100000),
+    ):
+        csrf = guard(request)
+        if not isinstance(csrf, str):
+            return csrf
+        item = get_item(settings.db_path, tender_id, numero)
+        if item is None:
+            return no_cache(PlainTextResponse("Item não encontrado.", status_code=404))
+        active = get_quote(settings.db_path, tender_id, numero)
+        return no_cache(templates.TemplateResponse(request, "suppliers.html", {
+            "csrf": csrf, "item": item, "offers": compare_offers(settings.db_path, item),
+            "analysis": analyze(item, active),
+            "current_quote": active, "today": date.today().isoformat(),
+        }))
+
+    @app.get("/api/suppliers")
+    async def supplier_api(
+        request: Request,
+        tender_id: str = Query(..., min_length=1, max_length=180),
+        numero: int = Query(..., ge=1, le=100000),
+    ):
+        csrf = guard(request, json=True)
+        if not isinstance(csrf, str):
+            return csrf
+        item = get_item(settings.db_path, tender_id, numero)
+        if item is None:
+            return no_cache(JSONResponse({"error": "Item não encontrado."}, status_code=404))
+        return no_cache(JSONResponse({
+            "data": compare_offers(settings.db_path, item),
+            "source_provenance": "cotações informadas pelo usuário; não verificadas automaticamente",
+        }))
+
+    async def supplier_form(request: Request):
+        csrf = guard(request)
+        if not isinstance(csrf, str):
+            return None, csrf
+        form = await request.form()
+        if not check_csrf(csrf, str(form.get("csrf") or "")):
+            return None, no_cache(PlainTextResponse(
+                "Token de segurança inválido.", status_code=403
+            ))
+        return form, None
+
+    def supplier_redirect(tender_id: str, numero: int):
+        from urllib.parse import urlencode
+        return no_cache(RedirectResponse("/suppliers?" + urlencode({
+            "tender_id": tender_id, "numero": numero,
+        }), status_code=303))
+
+    @app.post("/suppliers/add")
+    async def supplier_add(request: Request):
+        form, error = await supplier_form(request)
+        if error is not None:
+            return error
+        tender_id = str(form.get("tender_id") or "")
+        try:
+            numero = int(str(form.get("numero") or "0"))
+            keys = ("supplier", "unit_cost", "freight", "packaging", "other",
+                    "risk_reserve", "tax_percent", "target_margin")
+            values = {key: str(form.get(key) or "") for key in keys}
+            add_offer(
+                settings.db_path, tender_id, numero, values,
+                str(form.get("observed_on") or ""),
+                str(form.get("source_url") or ""),
+                str(form.get("note") or ""),
+            )
+        except SupplierError as exc:
+            return no_cache(PlainTextResponse(str(exc), status_code=exc.status_code))
+        except (TypeError, ValueError):
+            return no_cache(PlainTextResponse("Dados inválidos.", status_code=422))
+        return supplier_redirect(tender_id, numero)
+
+    @app.post("/suppliers/promote")
+    async def supplier_promote(request: Request):
+        form, error = await supplier_form(request)
+        if error is not None:
+            return error
+        tender_id = str(form.get("tender_id") or "")
+        try:
+            numero = int(str(form.get("numero") or "0"))
+            offer_id = int(str(form.get("offer_id") or "0"))
+            promote_offer(settings.db_path, tender_id, numero, offer_id)
+        except SupplierError as exc:
+            return no_cache(PlainTextResponse(str(exc), status_code=exc.status_code))
+        except (ValueError, TypeError):
+            return no_cache(PlainTextResponse("Cotação inválida.", status_code=422))
+        return supplier_redirect(tender_id, numero)
+
+    @app.post("/suppliers/remove")
+    async def supplier_remove(request: Request):
+        form, error = await supplier_form(request)
+        if error is not None:
+            return error
+        tender_id = str(form.get("tender_id") or "")
+        try:
+            numero = int(str(form.get("numero") or "0"))
+            offer_id = int(str(form.get("offer_id") or "0"))
+            remove_offer(settings.db_path, tender_id, numero, offer_id)
+        except SupplierError as exc:
+            return no_cache(PlainTextResponse(str(exc), status_code=exc.status_code))
+        except (ValueError, TypeError):
+            return no_cache(PlainTextResponse("Cotação inválida.", status_code=422))
+        return supplier_redirect(tender_id, numero)
 
     @app.get("/quote", response_class=HTMLResponse)
     async def quote_page(

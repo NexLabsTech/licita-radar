@@ -95,6 +95,9 @@
     });
     quoteLink.href = "/quote?" + query.toString();
     source.append(quoteLink);
+    const supplierLink = node("a", "table-link supplier-link", "Comparar fornecedores ↗");
+    supplierLink.href = "/suppliers?" + query.toString();
+    source.append(supplierLink);
     const aiLink = node("a", "table-link ai-link", "Analisar com IA ✦");
     aiLink.href = "/ai?" + query.toString();
     source.append(aiLink);
