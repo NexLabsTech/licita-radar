@@ -1,4 +1,4 @@
-# LicitaRadar | Source Pack v0.11
+# LicitaRadar | Source Pack v0.12
 
 ## Source hierarchy
 Source Check do GitHub (HEAD + arquivos existentes) > este Checkpoint > Decisions Ledger/ADRs > Scope > Definition of Done > Architecture > Requirements > evidências; Git/código/testes prevalecem sobre lembranças da conversa. Este documento é propositalmente compacto.
@@ -34,7 +34,7 @@ Servidor Python com FastAPI + Jinja2, httpx e SQLite (primeira versão). Coleta 
 Conta única: LOGIN_USERNAME + LOGIN_PASSWORD_HASH, SESSION_SECRET; falhar fechado em produção se ausentes. Sem segredos no Git, sem endpoint de registro, proteção CSRF em métodos de escrita, controle básico de tentativas de login, cotação privada com CSRF, fechamento e rollback SQLite, consentimento explícito antes de enviar custos/documentos à IA, limite de PDF 3 MiB/12 páginas, respostas externas validadas e sem HTML, consulta externa apenas em hosts PNCP definidos, timeout HTTP, escaping HTML, dependências fixadas quando validadas.
 
 ## Test & benchmark plan
-pytest para autenticação (sucesso/falha, proteção rota, CSRF), mapeamento PNCP, importação idempotente, falha de API e filtros. Ruff e compileall no CI. Benchmarks só após definição de volume real (não inventar SLO).
+pytest integrado para auth/CSRF/cookies corrompidos, PNCP mockado, ingestão idempotente, resultados, monitor/cobertura, Decimal e fornecedores, pipeline comercial/CSV e migrações reentrantes. CI com Python 3.12/3.13, Ruff/compileall/JS, Chromium desktop/mobile, Docker/backup. Benchmarks só após definição de volume real (não inventar SLO).
 
 ## Deployment
 Pacote opcional para VPS existente em ops/compose.yaml, Caddy 2.11.9 + web 1 worker sem host ports + backup sem rede; volumes persistentes, segredos *_FILE com permissões/grupo, preflight local via scripts.ops_setup, backup SQLite online com restore-new testado. Sem deploy automático; HTTPS, domínio, custo/eligibilidade, quotas, portas/firewall, cópia off-host e login público exigem prova na VPS real. Guia ops/DEPLOY.md. Não declarar deployed.
@@ -50,11 +50,12 @@ LR-INT-WO-001: monitor local de favoritos/regras/alertas e candidatos de republi
 LR-DATA-WO-002: resultados oficiais por item PNCP sem inferir concorrentes (PR #8 merged, squash 90bc1dd160c97191934d6e1810444fa2e2ad3088).
 LR-COVER-WO-003: coleta por região/IBGE com cursor paginado e retomável (PR #9 merged, squash 430897aa4af8e83e8ca4a56e97997e0caf087cbd).
 LR-FLOW-WO-004: workspace privado de etapas/notas/prazos/checklist e CSV seguro (PR #10 merged, squash b6e8eca978e74803a0e2512d56757efec3c89e27).
-LR-SUP-WO-005: comparador privado de até 12 fornecedores por item e seleção explícita da cotação principal (PR #11 auditada, merge pendente).
-Próximo incremento NECESSARY: qualificação final de código, contratos de API/migrações, validação de segurança/regressão, verificação de DoD e eventuais correções pontuais antes de considerar a fase de código completa. VPS/deploy adiados por decisão do usuário. Não adicionar fontes/propostas automáticas sem ADR.
+LR-SUP-WO-005: comparador privado de até 12 fornecedores por item e seleção explícita da cotação principal (PR #11 merged, squash 096effc5c28c006e04cbc07ccd5e9fd4c027b4cf).
+LR-QA-WO-006: hardening de sessão e matriz E2E de aceite pré-produção (PR #12 APPROVED após CI, merge condicionado ao read-back final).
+Fase de código: CODE_QUALIFIED_PREPRODUCTION após auditoria PR #12 (integrar somente se head final/CI verdes; confirmar merge SHA em main). PRs necessárias #1–#12; nenhuma próxima funcionalidade NECESSARY identificada nos requisitos R1–R14. Implantação/validação real na VPS são gates separados, explicitamente adiados pelo usuário. Sem custos e sem propostas automáticas.
 
 ## Definition of Done
-Código, testes relevantes e CI verdes; sem secrets; login protege todas as telas/APIs privadas; importação idempotente; itens 4/5 rotulados corretamente; origem e datas visíveis; documentação de execução em README; Evidence Bundle e auditoria objetiva. Deploy/validação em produção só contam quando efetivamente comprovados.
+Código, testes relevantes e CI verdes; sem secrets; login protege todas as telas/APIs privadas; importação idempotente; itens 4/5 rotulados corretamente; origem e datas visíveis; documentação de execução em README; Evidence Bundle e auditoria objetiva. **DoD da fase de código pré-produção** aprovado na PR #12 após 224/224 testes por versão e 4/4 jobs, integração E2E sintética. **DoD de versão completa (deploy, operação real e validação na VPS)** não atingido por decisão de adiamento, não confundir com `CODE_QUALIFIED_PREPRODUCTION`.
 
 ## Decisions Ledger / ADRs
 ADR-001 APPROVED (2026-11-23): GitHub público para CI; uso individual; login sem registro; foco código; docs concisas. 
@@ -94,3 +95,5 @@ ADR-013 APPROVED (2026-11-25): cotações de fornecedores múltiplos são inform
 2026-11-24: LR-FLOW-WO-004 APPROVED para código pré-produção na PR #10; base 430897aa4af8e83e8ca4a56e97997e0caf087cbd, head auditado 54a72f2069bddc24eeeed8c06cec5bab8b944df6. GitHub Actions #45369703934: 4/4 jobs SUCCESS, **179/179 pytest por matriz Python 3.12/3.13**, Ruff/JS, PNCP smoke, Docker+backup e Chromium desktop/mobile. Workspace de etapas manuais, notas, prazo, checklist e CSV privado protegido; não houve inscrição real, cotação de fornecedor automática nem deploy.
 
 2026-11-25: LR-SUP-WO-005 APPROVED para código pré-produção, PR #11, base b6e8eca978e74803a0e2512d56757efec3c89e27, head auditado 1a8a59825f0dc86279e140f2eb42ee4e0dfd51f1. CI #45701421452 4/4 jobs SUCCESS: **205/205 testes Python 3.12 e 205/205 Python 3.13**, Ruff/JS, PNCP smoke publicações, Docker/backup, Chromium desktop/mobile, artifact screenshots #15062463907 sha256 57777e5ed728f7878702bae3b8f61dde721515e8a02848ba8b300572097233e5. Sem valores de mercado obtidos automaticamente, sem lances, sem deploy ou validação tributária real.
+
+2026-11-25: LR-QA-WO-006 auditada **APPROVED para fase de código pré-produção** na PR #12; base 096effc5c28c006e04cbc07ccd5e9fd4c027b4cf, HEAD auditado d2b10bc898220579dcf73c237c8ada6d827845e1. CI #45702319423: 4/4 SUCCESS, **224/224 pytest por Python 3.12 e 3.13**, Ruff/compileall/JS, Chromium desktop/mobile e Docker rootless/backup/restart. Artifact #15063931964 digest sha256 71adda6b7a3ba7bedfca951f262c2bfe8ec69db6a3736830183a5b811b90737e. Cookie/base64 malformed fail-closed e jornada integrada sem rede externa. **CODE_QUALIFIED_PREPRODUCTION**, somente após merge aprovado. VPS/HTTPS/AI paga/mercado real e versão deployada ainda NÃO validados.
