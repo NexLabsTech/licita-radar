@@ -75,7 +75,9 @@ def unsign(token: str | None, secret: str) -> str | None:
         if not hmac.compare_digest(signature.encode('ascii'), expected.encode('ascii')):
             return None
         return _decode(payload).decode()
-    except (ValueError, UnicodeError):
+    except (ValueError, UnicodeError, binascii.Error):
+        # Assinatura inválida ou payload base64 corrompido: falhar fechado,
+        # nunca propagar uma exceção de parsing para uma rota autenticada.
         return None
 
 
