@@ -1,6 +1,6 @@
 """Provas de segurança e matemática para cotações privadas de fornecedores."""
-from datetime import date
 import re
+from datetime import date
 
 import pytest
 from fastapi.testclient import TestClient
